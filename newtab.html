@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>한의원 진료 차팅</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@400;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#f0f4f0;--surface:#fff;--surface2:#f0ede8;--surface3:#f9f8f6;
+  --border:#ddd8d0;--border2:#c8c2b8;
+  --text:#1c1a17;--text2:#6b6258;--text3:#a09890;
+  --green:#1a6b3a;--green-bg:#eef7f2;--green-light:#c8e6d4;
+  --teal:#0d7377;--teal-bg:#edf8f8;
+  --amber:#8b5e00;--amber-bg:#fdf6e3;--amber-light:#fce8a0;
+  --red:#b83030;--red-bg:#fdf0f0;
+  --purple:#5040a8;--purple-bg:#f0eefb;
+  --blue:#1a56b0;--blue-bg:#eff4fc;
+  --ink:#1a3c2a;
+  --radius:10px;--radius-sm:6px;
+}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;min-height:100vh;}
+
+/* ── 탑바 ── */
+.topbar{background:var(--ink);height:50px;display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;position:sticky;top:0;z-index:100;}
+.topbar-left{display:flex;align-items:center;gap:10px;}
+.topbar-title{font-size:15px;font-weight:700;color:#e8f5ee;letter-spacing:-.3px;}
+.topbar-title span{color:#7ecfa0;margin-right:4px;}
+.settings-btn{padding:5px 11px;border:1px solid #3a6b4a;border-radius:6px;background:transparent;color:#7ecfa0;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;}
+.settings-btn:hover{background:#2a4a3a;}
+.topbar-right{font-size:11px;color:#5a8a6a;}
+
+/* ── 탭 바 ── */
+.tab-bar{display:flex;background:var(--surface);border-bottom:2px solid var(--border);overflow-x:auto;scrollbar-width:none;}
+.tab-bar::-webkit-scrollbar{display:none;}
+.tab{flex:1;min-width:60px;padding:9px 5px;text-align:center;font-size:11px;font-weight:500;color:var(--text3);cursor:pointer;border-bottom:3px solid transparent;transition:all .15s;white-space:nowrap;user-select:none;}
+.tab:hover{color:var(--text2);background:var(--surface2);}
+.tab.active{color:var(--green);border-bottom-color:var(--green);background:var(--green-bg);font-weight:700;}
+.tab.done{color:var(--text2);}.tab.done .tab-icon::after{content:' ✓';font-size:10px;color:var(--green);}
+.tab-icon{font-size:14px;display:block;line-height:1.2;}
+.tab-txt{font-size:10px;}
+
+/* ── 공통 ── */
+.main{max-width:820px;margin:0 auto;padding:1.2rem 1rem;}
+.btn{padding:7px 14px;font-size:13px;font-weight:500;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .12s;display:inline-flex;align-items:center;gap:5px;}
+.btn:hover{background:var(--surface2);}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.btn.bg{background:var(--green);color:#fff;border-color:var(--green);}
+.btn.bg:hover:not(:disabled){background:#145a2e;}
+.btn.bt{background:var(--teal-bg);color:var(--teal);border-color:#9dd8da;}
+.btn.ba{background:var(--amber-bg);color:var(--amber);border-color:#e8d080;}
+.btn.bd{background:var(--red-bg);color:var(--red);border-color:#f0c0c0;}
+.btn.bp{background:var(--purple-bg);color:var(--purple);border-color:#c8c0f0;}
+.btn.bb{background:var(--blue-bg);color:var(--blue);border-color:#b0c8f0;}
+.btn-lg{padding:10px 20px;font-size:14px;}
+.btn-xl{padding:12px 24px;font-size:15px;font-weight:700;}
+input,select,textarea{padding:8px 10px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-family:'Noto Sans KR',sans-serif;width:100%;transition:border-color .15s;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green);}
+textarea{resize:vertical;line-height:1.75;}
+.lbl{font-size:12px;font-weight:500;color:var(--text2);display:block;margin-bottom:3px;margin-top:10px;}
+.req{color:var(--red);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem 1.2rem;margin-bottom:10px;}
+.card-title{font-size:14px;font-weight:700;margin-bottom:10px;color:var(--ink);display:flex;align-items:center;gap:6px;}
+.action-row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px;}
+.status-bar{padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;display:none;margin-bottom:10px;text-align:center;}
+.status-bar.ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green-light);display:block;}
+.status-bar.err{background:var(--red-bg);color:var(--red);border:1px solid #f0c0c0;display:block;}
+.status-bar.info{background:var(--blue-bg);color:var(--blue);border:1px solid #b0c8f0;display:block;}
+/* ── 업데이트 배너 ── */
+#update-banner{background:#fff8e1;border-bottom:2px solid #f6c700;padding:7px 18px;font-size:12.5px;color:#7a5a00;display:none;align-items:center;gap:10px;justify-content:center;}
+#update-banner button{padding:3px 10px;border:1px solid #f6c700;border-radius:5px;background:#fff;color:#7a5a00;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;}
+#update-banner button:hover{background:#fef3c7;}
+.loading-wrap{text-align:center;padding:2.5rem;}
+.spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-msg{color:var(--text2);font-size:13px;}
+.sec-title{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 6px;}
+.settings-panel{display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.1rem 1.2rem;margin-bottom:10px;}
+.settings-panel.open{display:block;}
+.copy-btn{padding:4px 11px;font-size:11px;border:1px solid var(--border2);border-radius:5px;background:var(--surface);cursor:pointer;font-family:'Noto Sans KR',sans-serif;}
+.copy-btn:hover{background:var(--surface2);}
+.copy-btn.copied{background:var(--green-bg);color:var(--green);border-color:var(--green-light);}
+
+/* ── 1탭: 환자 검색 ── */
+.search-row{display:flex;gap:8px;}
+.search-row input{flex:1;}
+.result-list{margin-top:8px;border:1px solid var(--border);border-radius:var(--radius-sm);max-height:200px;overflow-y:auto;display:none;}
+.result-item{padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s;}
+.result-item:hover{background:var(--green-bg);}
+.result-item:last-child{border-bottom:none;}
+.result-name{font-weight:700;font-size:14px;}
+.result-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.selected-patient{background:var(--green-bg);border:1px solid var(--green-light);border-radius:var(--radius-sm);padding:10px 14px;margin-top:8px;display:none;align-items:center;justify-content:space-between;}
+.patient-name{font-size:15px;font-weight:700;color:var(--green);}
+.patient-info{font-size:11px;color:var(--text2);margin-top:2px;}
+.visit-row{display:none;gap:8px;align-items:center;margin-top:8px;}
+.visit-row label{font-size:12px;color:var(--text2);font-weight:500;white-space:nowrap;}
+.visit-row select{flex:1;}
+
+/* ── 2탭: 녹음 ── */
+.rec-area{display:flex;align-items:center;gap:16px;margin-bottom:10px;}
+.rec-btn{width:72px;height:72px;border-radius:50%;border:none;font-size:28px;cursor:pointer;background:var(--red);color:#fff;box-shadow:0 4px 14px rgba(184,48,48,.35);display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;}
+.rec-btn:hover{transform:scale(1.05);}
+.rec-btn.recording{background:#8b1a1a;animation:pulse 1.2s infinite;}
+.rec-btn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(184,48,48,.5);}70%{box-shadow:0 0 0 18px rgba(184,48,48,0);}100%{box-shadow:0 0 0 0 rgba(184,48,48,0);}}
+.rec-info{flex:1;}
+.rec-status{font-size:13px;color:var(--text2);}
+.rec-status.active{color:var(--red);font-weight:700;}
+.rec-timer{font-size:22px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;margin-top:2px;}
+@keyframes whisper-load{0%{width:5%}50%{width:75%}100%{width:5%}}
+
+/* ── TIOM ── */
+.tiom-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px;}
+.tiom-item{border:1.5px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;cursor:pointer;transition:all .15s;}
+.tiom-item.idle{background:var(--surface2);}
+.tiom-item.checked{background:#eef7f2;border-color:var(--green);box-shadow:0 0 0 1px var(--green);}
+.tiom-item.unchecked{background:#fdf0f0;border-color:var(--red);opacity:.7;}
+.tiom-key{font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px;display:flex;align-items:center;gap:6px;}
+.tiom-badge{width:10px;height:10px;border-radius:50%;border:2px solid var(--border2);display:inline-block;flex-shrink:0;}
+.tiom-item.checked .tiom-badge{background:var(--green);border-color:var(--green);}
+.tiom-item.unchecked .tiom-badge{background:var(--red);border-color:var(--red);}
+.tiom-item.checked .tiom-key{color:var(--green);}
+.tiom-item.unchecked .tiom-key{color:var(--red);}
+.tiom-desc{font-size:11px;color:var(--text3);}
+.tiom-warn{font-size:12px;color:var(--amber);background:var(--amber-bg);border:1px solid var(--amber-light);border-radius:var(--radius-sm);padding:7px 11px;display:none;margin-top:6px;}
+
+/* ── 3탭: 진료 차팅 ── */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.chart-full{grid-column:1/-1;}
+.chart-lbl{display:block;font-size:11px;font-weight:700;padding:4px 9px;border-radius:5px;margin-bottom:4px;}
+.lbl-cc{background:#fff0f0;color:#b83030;}
+.lbl-os{background:#fff8f0;color:#a05000;}
+.lbl-pi{background:#fff8e8;color:#8b5e00;}
+.lbl-pa{background:#edf8f8;color:#0d7377;}
+.lbl-ps{background:#f0eefb;color:#5040a8;}
+.lbl-a{background:#f0fff4;color:#1a6b3a;}
+.lbl-p{background:#eff4fc;color:#1a56b0;}
+.chart-box textarea{min-height:90px;}
+.diag-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.diag-box{border-radius:var(--radius-sm);padding:11px 13px;}
+.diag-box.ko{background:var(--purple-bg);border:1px solid #d0c8f8;}
+.diag-box.we{background:var(--teal-bg);border:1px solid #9dd8da;}
+.diag-key{font-size:11px;font-weight:700;margin-bottom:6px;}
+.diag-box.ko .diag-key{color:var(--purple);}
+.diag-box.we .diag-key{color:var(--teal);}
+.diag-item{font-size:12px;padding:2px 0;}
+.eval-block{border-left:3px solid var(--green);padding:8px 12px;margin-bottom:10px;background:var(--green-bg);border-radius:0 var(--radius-sm) var(--radius-sm) 0;}
+.eval-block:last-child{margin-bottom:0;}
+.eval-label{font-size:11px;font-weight:700;color:var(--green);margin-bottom:4px;letter-spacing:.02em;}
+.eval-body{font-size:13px;color:var(--text);line-height:1.75;white-space:pre-wrap;}
+
+/* ── 4탭: 복약지도문 ── */
+.sms-box{background:var(--amber-bg);border:1px solid var(--amber-light);border-radius:var(--radius-sm);padding:12px;font-size:13px;line-height:1.75;white-space:pre-wrap;margin-bottom:6px;}
+
+/* ── 5탭: 문자 초안 ── */
+.msg-box{background:var(--green-bg);border:1px solid var(--green-light);border-radius:var(--radius-sm);padding:14px;font-size:13px;line-height:1.85;white-space:pre-wrap;margin-bottom:8px;}
+
+/* ── 이전 진료 배너 ── */
+#prev-visit-banner{display:none;background:var(--purple-bg);border:1px solid #d0c8f8;border-radius:var(--radius);padding:10px 14px;margin-bottom:10px;}
+
+/* ── 인쇄 ── */
+@media print{
+  html,body{margin:0!important;padding:0!important;}
+  body>*:not(#print-area){display:none!important;}
+  #print-area{display:block!important;}
+  .print-page{width:100%!important;margin:0!important;padding:10mm 14mm!important;box-shadow:none!important;page-break-after:avoid;}
+}
+#print-area{display:none;font-family:'Noto Serif KR','Noto Sans KR',serif;}
+.print-page{width:190mm;margin:0 auto;padding:12mm 14mm;background:#fff;box-sizing:border-box;font-size:9.5pt;line-height:1.6;}
+.print-header{border-bottom:2.5pt solid #1a6b3a;padding-bottom:12pt;margin-bottom:16pt;display:flex;align-items:flex-end;justify-content:space-between;}
+.print-clinic{font-size:13pt;font-weight:700;color:#1a6b3a;}
+.print-sec{margin-bottom:8pt;page-break-inside:avoid;}
+.print-sec-title{font-size:9.5pt;font-weight:700;color:#1a6b3a;border-left:2.5pt solid #1a6b3a;padding-left:5pt;margin-bottom:5pt;}
+.print-list{padding-left:12pt;margin:0;}
+.print-list li{margin-bottom:3pt;font-size:9pt;}
+.print-footer{margin-top:8pt;padding-top:5pt;border-top:.5pt solid #c8c2b8;font-size:7.5pt;color:#a09890;text-align:center;}
+</style>
+</head>
+<body>
+
+<div id="update-banner">
+  🆕 새 버전 <strong id="update-ver"></strong>이 있습니다. &nbsp;
+  <button onclick="document.getElementById('update-banner').style.display='none'">닫기</button>
+</div>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="topbar-title"><span>✦</span>한의원 진료 차팅</span>
+    <button class="settings-btn" id="btn-settings">⚙️ 설정</button>
+  </div>
+  <span class="topbar-right" id="top-status"></span>
+</div>
+
+<!-- 탭 바 (자유 이동) -->
+<div class="tab-bar">
+  <div class="tab active" id="tab1"><span class="tab-icon">👤</span><span class="tab-txt">환자선택</span></div>
+  <div class="tab" id="tab2"><span class="tab-icon">🎙️</span><span class="tab-txt">녹음/입력</span></div>
+  <div class="tab" id="tab3"><span class="tab-icon">🤖</span><span class="tab-txt">AI 차팅</span></div>
+  <div class="tab" id="tab4"><span class="tab-icon">💊</span><span class="tab-txt">복약지도문</span></div>
+  <div class="tab" id="tab5"><span class="tab-icon">💬</span><span class="tab-txt">문자초안</span></div>
+  <div class="tab" id="tab6"><span class="tab-icon">📋</span><span class="tab-txt">첩약콜</span></div>
+</div>
+
+<div class="main">
+
+  <!-- 설정 패널 -->
+  <div class="settings-panel" id="settings-panel">
+    <div class="card-title">⚙️ 설정</div>
+    <div class="form-row">
+      <div>
+        <label class="lbl">Claude API 키</label>
+        <input type="password" id="cfg-apikey" placeholder="sk-ant-...">
+      </div>
+      <div>
+        <label class="lbl">한의맥 서버 IP:포트</label>
+        <input type="text" id="cfg-server" placeholder="192.168.0.223:6982">
+      </div>
+    </div>
+    <div class="form-row" style="margin-top:8px">
+      <div>
+        <label class="lbl">🎙️ OpenAI API 키 <span style="font-weight:400;color:var(--text3)">(Whisper STT용)</span></label>
+        <input type="password" id="cfg-openai-key" placeholder="sk-... (없으면 기본 음성인식 사용)">
+      </div>
+      <div>
+        <label class="lbl">한의학 용어 힌트 <span style="font-weight:400;color:var(--text3)">(Whisper 인식 정확도 향상)</span></label>
+        <input type="text" id="cfg-whisper-hint" placeholder="예) 맥세삭 태충 신문 내관 전중 음릉천 보중익기탕">
+      </div>
+    </div>
+    <div class="form-row" style="margin-top:8px">
+      <div>
+        <label class="lbl">✨ Gemini API 키 <span style="font-weight:400;color:var(--text3)">(복약지도문 생성용)</span></label>
+        <input type="password" id="cfg-gemini-key" placeholder="AIza... (없으면 Claude로 대체)">
+      </div>
+      <div></div>
+    </div>
+    <div class="form-row" style="margin-top:8px">
+      <div>
+        <label class="lbl">한의맥 아이디</label>
+        <input type="text" id="cfg-uid" placeholder="로그인 아이디">
+      </div>
+      <div>
+        <label class="lbl">한의맥 비밀번호</label>
+        <input type="password" id="cfg-upw" placeholder="비밀번호">
+      </div>
+    </div>
+    <div style="margin-top:8px">
+      <label class="lbl">구글 시트 저장 URL (Apps Script 배포 URL)</label>
+      <input type="text" id="cfg-gsurl" placeholder="https://script.google.com/macros/s/...">
+    </div>
+    <div style="margin-top:8px">
+      <label class="lbl">한의원 서명 (문자 하단)</label>
+      <input type="text" id="cfg-kakao-sig" placeholder="예) 경희늘푸른한의원 주찬호 원장">
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;">
+      <button class="btn bg" id="btn-save-settings">저장</button>
+      <button class="btn" id="btn-close-settings">닫기</button>
+    </div>
+  </div>
+
+  <div id="status-bar" class="status-bar"></div>
+
+  <!-- ══ 탭1: 환자 선택 ══ -->
+  <div id="panel1">
+    <div class="card">
+      <div class="card-title">👤 환자 검색</div>
+      <div class="search-row">
+        <input type="text" id="search-input" placeholder="환자 이름 또는 차트번호 입력" autocomplete="off">
+        <button class="btn bg" id="btn-search">검색</button>
+      </div>
+      <div class="result-list" id="result-list"></div>
+      <div class="selected-patient" id="selected-patient">
+        <div>
+          <div class="patient-name" id="pt-name"></div>
+          <div class="patient-info" id="pt-info"></div>
+        </div>
+        <button class="btn" id="btn-clear-patient" style="padding:5px 10px;font-size:12px">변경</button>
+      </div>
+      <div class="visit-row" id="visit-row">
+        <label>📅 진료일:</label>
+        <select id="visit-select"></select>
+      </div>
+
+      <!-- 기존 차트 불러오기 버튼 (진료 기록 있을 때만 표시) -->
+      <div id="load-chart-row" style="display:none;margin-top:10px;">
+        <button class="btn bt" id="btn-load-chart" style="width:100%;justify-content:center;padding:10px;">
+          📋 선택한 날짜 차트 불러오기 → AI 차팅 탭에 자동 입력
+        </button>
+        <div id="load-chart-preview" style="display:none;margin-top:8px;background:var(--teal-bg);border:1px solid #9dd8da;border-radius:var(--radius-sm);padding:10px 13px;font-size:12px;color:#0a5a5e;line-height:1.7;white-space:pre-wrap;max-height:120px;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- 단계 안내 -->
+    <div style="background:var(--blue-bg);border:1px solid #b0c8f0;border-radius:var(--radius);padding:14px 16px;font-size:13px;color:var(--blue);line-height:1.9;">
+      <b>💡 사용 방법 — 원하는 순서로 탭을 자유롭게 이동할 수 있습니다</b><br>
+      <span style="color:var(--text2)">
+        📋 기존 차트 불러오기 → 🤖 AI 차팅 탭 자동 입력<br>
+        🎙️ 녹음 후 AI 분석 또는 직접 SOAP 입력도 가능합니다.
+      </span>
+    </div>
+    <div class="action-row" style="margin-top:10px;">
+      <button class="btn bg btn-lg" id="btn-next1" disabled>다음 →</button>
+    </div>
+  </div>
+
+  <!-- ══ 탭2: 녹음/입력 ══ -->
+  <div id="panel2" style="display:none">
+    <div class="card">
+      <div class="card-title">📋 TIOM 문진 체크
+        <span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:6px">클릭하여 확인 여부 표시</span>
+      </div>
+      <div class="tiom-grid">
+        <div class="tiom-item idle" id="tiom-T">
+          <div class="tiom-key"><span class="tiom-badge"></span> T — 한열 (寒熱)</div>
+          <div class="tiom-desc">추위·더위 경향 / 체온 감각 / 땀</div>
+        </div>
+        <div class="tiom-item idle" id="tiom-I">
+          <div class="tiom-key"><span class="tiom-badge"></span> I — 음식 (飮食)</div>
+          <div class="tiom-desc">식욕 / 소화 / 음수량 / 기호 식품</div>
+        </div>
+        <div class="tiom-item idle" id="tiom-O">
+          <div class="tiom-key"><span class="tiom-badge"></span> O — 대소변 (便)</div>
+          <div class="tiom-desc">대변 횟수·형태 / 소변 빈도·색</div>
+        </div>
+        <div class="tiom-item idle" id="tiom-M">
+          <div class="tiom-key"><span class="tiom-badge"></span> M — 심신 (心身)</div>
+          <div class="tiom-desc">수면 / 흉부 답답함 / 스트레스 / 두근거림</div>
+        </div>
+      </div>
+      <div class="tiom-warn" id="tiom-warn"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎙️ 녹음 / 직접 입력</div>
+      <div class="rec-area">
+        <button class="rec-btn" id="rec-btn">🎙️</button>
+        <div class="rec-info">
+          <div class="rec-timer" id="rec-timer">00:00</div>
+          <div class="rec-status" id="rec-status">버튼을 눌러 녹음을 시작하세요</div>
+          <div id="rec-mode-badge" style="display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700;background:var(--surface2);color:var(--text3);border:1px solid var(--border2);">
+            <span id="rec-mode-icon">●</span> <span id="rec-mode-text">모드 확인 중...</span>
+          </div>
+        </div>
+      </div>
+      <div id="whisper-progress" style="display:none;background:var(--blue-bg);border:1px solid #b0c8f0;border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:8px;font-size:13px;color:var(--blue);">
+        <span id="whisper-progress-text">🔄 Whisper AI 변환 중...</span>
+        <div style="height:4px;background:#dde8f8;border-radius:2px;margin-top:6px;overflow:hidden;">
+          <div style="height:100%;background:var(--blue);border-radius:2px;animation:whisper-load 2s ease-in-out infinite;"></div>
+        </div>
+      </div>
+      <textarea id="raw-text" rows="8" placeholder="녹음 후 텍스트가 표시됩니다. 직접 입력하거나 기존 SOAP 차트를 붙여넣기 해도 됩니다.&#10;&#10;예) 환자 소화불량 2주 호소. 식후 더부룩함, 트림. 맥침완. 설태 백후...&#10;또는 기존 [S][O][A][P] 형식 차트 그대로 붙여넣기 가능"></textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+        <button class="btn" id="btn-clear-raw">지우기</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📝 추가 메모
+        <span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:6px">누락 사항, 강조할 내용, 비고</span>
+      </div>
+      <textarea id="extra-memo" rows="3" placeholder="예) 갱년기 호르몬제 복용 중 / 커피 하루 3잔 / 처방 시 간기능 고려 필요..."></textarea>
+    </div>
+
+    <div class="action-row">
+      <button class="btn bg btn-xl" id="btn-analyze">🤖 AI 분석 시작</button>
+    </div>
+  </div>
+
+  <!-- ══ 탭3: AI 차팅 ══ -->
+  <div id="panel3" style="display:none">
+    <div id="loading3" class="loading-wrap" style="display:none">
+      <div class="spinner"></div>
+      <div class="loading-msg">Claude AI가 진료 내용을 분석하고 있습니다...<br>약 15~25초 소요됩니다</div>
+    </div>
+    <div id="result3">
+      <!-- 이전 진료 비교 배너 -->
+      <div id="prev-visit-banner">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <div style="font-size:13px;font-weight:700;color:var(--purple);">🔄 이전 진료 기록 참조됨</div>
+          <button class="copy-btn" id="btn-toggle-prev" style="background:var(--purple-bg);color:var(--purple);border-color:#c0b8f0;">이전 기록 보기 ▼</button>
+        </div>
+        <div id="prev-visit-detail" style="display:none;margin-top:10px;border-top:1px solid #d0c8f8;padding-top:10px;"></div>
+      </div>
+
+      <!-- 진료 메모 입력 + AI 분석 (탭3 자체 실행) -->
+      <div class="card" id="inline-analyze-box">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+          <div class="card-title" style="margin-bottom:0;">🤖 AI 분석</div>
+          <button class="copy-btn" id="btn-toggle-inline-input">입력 내용 보기 ▼</button>
+        </div>
+        <!-- 접이식 입력 영역 -->
+        <div id="inline-input-area" style="display:none;border-top:1px solid var(--border);padding-top:10px;margin-top:4px;">
+          <label class="lbl" style="margin-top:0;">진료 메모 (녹음/입력 탭 내용 자동 반영)</label>
+          <textarea id="inline-raw-text" rows="5" placeholder="진료 메모를 여기에 직접 입력하거나 붙여넣기 하세요.&#10;예) 환자 소화불량 2주 호소. 맥침완. 설태 백후..."></textarea>
+          <label class="lbl">추가 메모</label>
+          <textarea id="inline-extra-memo" rows="2" placeholder="추가 강조 사항..."></textarea>
+        </div>
+        <button class="btn bg btn-lg" id="btn-analyze-inline" style="width:100%;justify-content:center;margin-top:8px;">
+          ✨ AI 분석 시작 (SOAP 자동 생성)
+        </button>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px;text-align:center;">진료 메모 없이 아래 SOAP을 직접 입력/수정해도 됩니다 — 복약지도문·문자초안은 SOAP 내용 기반으로 생성됩니다</div>
+      </div>
+
+      <div id="soap-section">
+        <div class="card">
+          <div class="card-title">📋 진료 차팅
+            <span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:auto">직접 입력 / 수정 가능</span>
+          </div>
+          <div class="chart-grid">
+            <div class="chart-box chart-full">
+              <span class="chart-lbl lbl-cc">CC — 주증상 (Chief Complaint)</span>
+              <textarea id="chart-cc" rows="2" placeholder="주 호소 증상을 한 줄로 (예: 요통·좌측 어깨통증·소화불량)"></textarea>
+            </div>
+            <div class="chart-box">
+              <span class="chart-lbl lbl-os">OS — 발병 (Onset)</span>
+              <textarea id="chart-os" rows="5" placeholder="발병 시점, 원인, 계기"></textarea>
+            </div>
+            <div class="chart-box">
+              <span class="chart-lbl lbl-pi">PI — 현병력 (Present Illness)</span>
+              <textarea id="chart-pi" rows="5" placeholder="증상 양상, 악화/완화 요인, ROS 등"></textarea>
+            </div>
+            <div class="chart-box">
+              <span class="chart-lbl lbl-pa">PA — 신체평가 (Physical Assessment)</span>
+              <textarea id="chart-pa" rows="5" placeholder="Pulse: 맥상&#10;Tongue: 설색/설태&#10;기타 신체 소견"></textarea>
+            </div>
+            <div class="chart-box">
+              <span class="chart-lbl lbl-ps">환자진술 (Patient Statement)</span>
+              <textarea id="chart-ps" rows="5" placeholder="환자가 직접 한 주요 진술 (원문 그대로)"></textarea>
+            </div>
+            <div class="chart-box">
+              <span class="chart-lbl lbl-a">A — 변증 (Assessment)</span>
+              <textarea id="chart-a" rows="5" placeholder="주변증: &#10;겸증: "></textarea>
+            </div>
+            <div class="chart-box">
+              <span class="chart-lbl lbl-p">P — 치료계획 (Plan)</span>
+              <textarea id="chart-p" rows="5" placeholder="Tx: 혈자리&#10;Herb: 처방&#10;Etc: 생활지도"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="sec-title">변증 / 진단</div>
+          <div class="diag-row">
+            <div class="diag-box ko"><div class="diag-key">🌿 한의학 변증</div><div id="diag-ko"></div></div>
+            <div class="diag-box we"><div class="diag-key">🏥 의심 양방 질환</div><div id="diag-we"></div></div>
+          </div>
+          <div class="sec-title">진료 평가</div>
+          <div style="background:var(--green-bg);border:1px solid var(--green-light);border-radius:var(--radius-sm);padding:12px;" id="res-eval"></div>
+        </div>
+        <div class="action-row">
+          <button class="btn bb btn-lg" id="btn-copy-clip">📋 차트 복사</button>
+          <button class="btn bg btn-lg" id="btn-save-hanymac">💾 한의맥 저장</button>
+          <button class="btn ba btn-lg" id="btn-go-tab4">💊 복약지도문 →</button>
+          <button class="btn bt btn-lg" id="btn-go-tab5-from3">💬 문자초안 →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 탭4: 복약지도문 ══ -->
+  <div id="panel4" style="display:none">
+    <div class="card">
+      <div class="card-title">💊 처방 입력</div>
+      <div class="form-row">
+        <div>
+          <label class="lbl">처방명 <span class="req">*</span></label>
+          <input type="text" id="presc-name" placeholder="보중익기탕 가감, 육미지황탕 등">
+        </div>
+        <div>
+          <label class="lbl">용법</label>
+          <input type="text" id="presc-dosage" placeholder="1일 2회, 식전 식후 무관">
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label class="lbl">첩수/기간</label>
+          <input type="text" id="presc-duration" placeholder="20첩 (10일분)">
+        </div>
+        <div>
+          <label class="lbl">처방 구성 (선택)</label>
+          <input type="text" id="presc-detail" placeholder="황기, 인삼, 백출...">
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <label class="lbl">✏️ 추가 지시사항 <span style="font-weight:400;color:var(--text3)">(복약지도문에 강조할 내용 — AI가 우선 반영)</span></label>
+        <textarea id="guide-extra-instruction" rows="2" placeholder="예) 소화기가 약하니 식후 복용 강조 / 수면 개선에 초점 맞춰서 / 금주 필요성 언급 / 다음 내원까지 증상 기록 요청 등"></textarea>
+      </div>
+      <div class="action-row" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn bg btn-lg" id="btn-gen-guide">📄 복약지도문 생성</button>
+        <button class="btn bt btn-lg" id="btn-open-guide-history">📂 저장된 복약지도문 불러오기</button>
+      </div>
+    </div>
+    <div id="loading4" class="loading-wrap" style="display:none">
+      <div class="spinner"></div>
+      <div class="loading-msg">복약지도문을 작성하고 있습니다...<br>약 15~20초 소요됩니다</div>
+    </div>
+    <div id="guide-preview" style="display:none">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+          <div class="card-title" style="margin-bottom:0;">📄 복약지도문 미리보기</div>
+          <button class="btn bp" id="btn-toggle-edit" style="font-size:12px;">✏️ 내용 수정</button>
+        </div>
+
+        <!-- 수정 패널 (접이식) -->
+        <div id="guide-edit-panel" style="display:none;border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px;">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">수정 후 "미리보기 적용" 버튼을 눌러 반영하세요.</div>
+          <label class="lbl" style="margin-top:0;">복용 방법 요약</label>
+          <input type="text" id="edit-dosage-summary" style="margin-bottom:8px;">
+          <label class="lbl">본문 편지</label>
+          <textarea id="edit-letter" rows="10" style="font-family:'Noto Serif KR',serif;font-size:10pt;line-height:1.8;"></textarea>
+          <label class="lbl" style="margin-top:10px;">주의사항 (한 줄에 하나씩)</label>
+          <textarea id="edit-cautions" rows="6" style="font-size:12px;line-height:1.8;"></textarea>
+          <div class="action-row" style="margin-top:8px;justify-content:flex-start;">
+            <button class="btn bg" id="btn-apply-edit">✅ 미리보기 적용</button>
+            <button class="btn" id="btn-cancel-edit">취소</button>
+          </div>
+        </div>
+
+        <div class="action-row" style="margin-top:0;margin-bottom:10px;">
+          <button class="btn bb" id="btn-save-file">💾 파일 저장</button>
+          <button class="btn bg" id="btn-print">🖨️ A4 인쇄</button>
+          <button class="btn ba" id="btn-save-all">☁️ 기록 저장</button>
+          <button class="btn bt btn-lg" id="btn-go-tab5-from4" style="margin-left:auto;">💬 문자초안 →</button>
+        </div>
+      </div>
+      <div id="guide-screen" style="background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:1.4rem;margin-bottom:10px;font-family:'Noto Serif KR','Noto Sans KR',serif;font-size:11pt;line-height:1.8;color:#1a1816;max-width:720px;"></div>
+    </div>
+  </div>
+
+  <!-- ══ 탭5: 문자 초안 ══ -->
+  <div id="panel5" style="display:none">
+    <div class="card">
+      <div class="card-title">💬 환자 문자 생성</div>
+
+      <!-- 환자 정보 -->
+      <div id="sms-patient-info" style="display:none;background:var(--green-bg);border:1px solid var(--green-light);border-radius:var(--radius-sm);padding:9px 13px;margin-bottom:12px;">
+        <span style="font-size:12px;color:var(--text2)">발송 대상: </span>
+        <span id="sms-pt-name" style="font-weight:700;color:var(--green);font-size:14px;"></span>
+        <span id="sms-pt-phone" style="font-size:12px;color:var(--text2);margin-left:10px;"></span>
+      </div>
+
+      <!-- 메시지 유형 -->
+      <div style="margin-bottom:12px;">
+        <label class="lbl">메시지 유형</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:5px;">
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;">
+            <input type="radio" name="msg-type" value="lifestyle" checked> 생활습관 지도
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;">
+            <input type="radio" name="msg-type" value="nextvisit"> 다음 내원 안내
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;">
+            <input type="radio" name="msg-type" value="combined"> 통합 (생활습관+내원)
+          </label>
+          <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;">
+            <input type="radio" name="msg-type" value="followup"> 치료 경과 확인
+          </label>
+        </div>
+        <!-- 자동차보험 -->
+        <div style="margin-top:8px;background:#fff8f0;border:1px solid #fce8a0;border-radius:6px;padding:8px 12px;display:flex;align-items:center;gap:10px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;font-weight:700;color:#8b5e00;">
+            <input type="checkbox" id="chk-auto-insurance" style="width:auto;">
+            🚗 자동차보험(자보) 환자
+          </label>
+          <span style="font-size:11px;color:var(--text3);">체크 시 초기 2주 매일 + 이후 주 3회 문구 포함</span>
+        </div>
+      </div>
+
+      <div class="form-row" style="margin-bottom:10px;">
+        <div>
+          <label class="lbl">다음 내원 일정</label>
+          <input type="text" id="kk-next-visit" placeholder="예) 다음 주 목요일, 7일 후">
+        </div>
+        <div>
+          <label class="lbl">권장 치료 횟수</label>
+          <input type="text" id="kk-treat-count" placeholder="예) 주 2회, 총 10회 권장">
+        </div>
+      </div>
+      <div style="margin-bottom:10px;">
+        <label class="lbl">추가 강조 사항 (선택)</label>
+        <textarea id="kk-extra" rows="2" placeholder="예) 온찜질 하루 2회 강조, 음주 절대 금지 당부..."></textarea>
+      </div>
+      <div class="action-row" style="justify-content:flex-start;margin-bottom:0;">
+        <button class="btn bg btn-lg" id="btn-gen-sms">✨ 문자 생성</button>
+        <button class="btn" id="btn-reset-sms" style="font-size:12px;">초기화</button>
+      </div>
+    </div>
+
+    <div id="loading5" class="loading-wrap" style="display:none">
+      <div class="spinner"></div>
+      <div class="loading-msg">문자 내용을 생성하고 있습니다...</div>
+    </div>
+
+    <div id="result5" style="display:none">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+          <div class="card-title" style="margin-bottom:0;">📨 생성된 문자</div>
+          <div style="display:flex;gap:6px;">
+            <button class="copy-btn" id="btn-copy-sms-msg">📋 복사</button>
+            <button class="copy-btn" id="btn-regen-sms">🔄 다시 생성</button>
+          </div>
+        </div>
+        <textarea id="sms-message" rows="10" style="background:var(--amber-bg);border:1px solid var(--amber-light);font-size:13px;line-height:1.85;"></textarea>
+        <!-- 복사 피드백 -->
+        <div id="sms-copy-feedback" style="display:none;margin-top:8px;padding:8px 12px;background:var(--green-bg);border:1px solid var(--green-light);border-radius:5px;font-size:12px;color:var(--green);font-weight:700;">
+          ✅ 복사됐습니다! 문자앱 또는 카카오톡에 붙여넣기 하세요.
+        </div>
+        <!-- 환자 전화번호 -->
+        <div id="sms-phone-row" style="display:none;margin-top:10px;padding:10px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div>
+            <div style="font-size:11px;color:var(--text3);margin-bottom:2px;">환자 전화번호</div>
+            <div id="sms-phone-display" style="font-size:15px;font-weight:700;letter-spacing:0.05em;"></div>
+          </div>
+          <button class="btn bb" id="btn-copy-phone">📞 번호 복사</button>
+        </div>
+      </div>
+      <!-- 구글 시트 저장 -->
+      <div class="card">
+        <label class="lbl" style="margin-top:0;">발송 메모 (선택)</label>
+        <input type="text" id="sms-send-note" placeholder="예: 환자 수신 확인" style="margin-bottom:8px;">
+        <button class="btn bg" id="btn-save-sms-log" style="width:100%;justify-content:center;">☁️ 발송 기록 구글 시트에 저장</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="print-area"></div>
+
+  <!-- ══ 탭6: 첩약 환자 콜 관리 ══ -->
+  <div id="panel6" style="display:none">
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+        <div class="card-title" style="margin-bottom:0;">📋 첩약 환자 콜 목록</div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          <select id="herb-filter"  style="font-size:12px;padding:5px 8px;width:auto;">
+            <option value="">전체</option>
+            <option value="미완료">미완료</option>
+            <option value="완료">완료</option>
+            <option value="온다고했는데아직안오심">온다고했는데아직안오심</option>
+            <option value="보류">보류</option>
+          </select>
+          <button class="btn" style="font-size:12px;" id="btn-refresh-herb">🔄 새로고침</button>
+        </div>
+      </div>
+      <div id="herb-list">
+        <div class="loading-wrap"><div class="spinner"></div><div class="loading-msg">불러오는 중...</div></div>
+      </div>
+    </div>
+  </div>
+
+
+<script src="newtab.js"></script>
+
+<!-- 복약지도문 불러오기 모달 -->
+<div id="guide-history-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;padding:1rem;">
+  <div style="background:var(--surface);border-radius:var(--radius);padding:1.5rem;width:100%;max-width:580px;max-height:88vh;overflow-y:auto;box-shadow:0 16px 60px rgba(0,0,0,.2);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+      <h2 style="font-size:16px;font-weight:700;margin:0;">📂 저장된 복약지도문 불러오기</h2>
+      <button class="btn" id="btn-close-guide-history" style="padding:4px 12px;font-size:12px;">✕ 닫기</button>
+    </div>
+    <div style="margin-bottom:12px;">
+      <input type="text" id="guide-history-search" placeholder="환자명 검색..." id="guide-history-search" style="max-width:220px;">
+    </div>
+    <div id="guide-history-list">
+      <div class="loading-wrap"><div class="spinner"></div><div class="loading-msg">불러오는 중...</div></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
