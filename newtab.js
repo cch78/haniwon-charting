@@ -421,7 +421,7 @@ function loadChartFromHanymac() {
     }
     switchTab(3);
     document.getElementById('tab3').classList.add('done');
-    showStatus('✅ ' + date + ' SOAP 차트를 불러왔습니다. 바로 확인하거나 AI 재분석 할 수 있습니다.', 'ok');
+    showStatus('✅ ' + date + ' 차트를 불러왔습니다. 바로 확인하거나 AI 재분석 할 수 있습니다.', 'ok');
   }
 }
 function initSpeech() {
