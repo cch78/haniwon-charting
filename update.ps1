@@ -27,8 +27,8 @@ try {
     exit 1
 }
 
-$currentMf = Get-Content (Join-Path $ScriptDir "manifest.json") -Raw | ConvertFrom-Json
-$current   = $currentMf.version
+$currentRaw = Get-Content (Join-Path $ScriptDir "manifest.json") -Raw
+$current    = if ($currentRaw -match '"version"\s*:\s*"([^"]+)"') { $Matches[1] } else { "" }
 $latest    = $latestMf.version
 
 if ($latest -eq $current) {

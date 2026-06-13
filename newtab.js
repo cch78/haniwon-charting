@@ -6,7 +6,7 @@ var LOGO_FULL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAxcAAADACAYAAAB28
 // 탭 기반 자유 이동 / Whisper STT / Claude AI
 // =====================================================
 
-var CFG = { server:'192.168.0.223:6982', uid:'', upw:'', apiKey:'', openAiKey:'', geminiKey:'', whisperHint:'', gsUrl:'', kakaoSig:'' };
+var CFG = { server:'192.168.0.226:6982', uid:'', upw:'', apiKey:'', openAiKey:'', geminiKey:'', whisperHint:'', gsUrl:'', kakaoSig:'' };
 var state = { patient:null, visitList:[], rawText:'', extraMemo:'', analysisResult:null, guideResult:null, prescData:null };
 var tiom = { T:'idle', I:'idle', O:'idle', M:'idle' };
 var recState = { isRecording:false, recognition:null, fullTranscript:'', elapsed:0, timer:null, mediaRecorder:null, audioChunks:[], mimeType:'' };
@@ -932,7 +932,7 @@ function generateGuide() {
     diagnosis: (diag.korean||[]).join(', ') + ((diag.western||[]).length?' / '+(diag.western||[]).join(', '):''),
     prescName: prescName,
     prescDetail: document.getElementById('presc-detail').value.trim(),
-    dosage: document.getElementById('presc-dosage').value.trim()||'1일 2회, 식전 식후 무관',
+    dosage: document.getElementById('presc-dosage').value.trim()||'1일 2회, 식전 식후 무관하게 규칙적으로',
     duration: document.getElementById('presc-duration').value.trim(),
     extraInstruction: document.getElementById('guide-extra-instruction').value.trim()
   };
@@ -1015,7 +1015,7 @@ function generateGuide() {
     '{\n' +
     '  "patientName": "' + data.patientName + '",\n' +
     '  "medType": "' + data.medType + '",\n' +
-    '  "dosageSummary": "총 N일분, N팩입니다.' + (isChild ? ' 소아의 경우 체중 및 나이에 따라 복용량을 조절할 수 있으니 처방전을 참고하세요.' : ' 식전 식후 무관하게 하루 총 2팩 복용하세요!') + '",\n' +
+    '  "dosageSummary": "용법(' + data.dosage + ')과 기간(' + (data.duration||'미입력') + ')을 바탕으로 총 일수·총 팩수를 계산하여 작성. ' + (isChild ? '끝에 "소아의 경우 체중 및 나이에 따라 복용량을 조절할 수 있으니 처방전을 참고하세요." 추가.' : '끝에 "식전 식후 무관하게 규칙적으로 드세요!" 추가.') + '",\n' +
     '  "letter": "번호/불렛 없는 3문단 줄글 편지 (600~800자). 위 [문단별 필수 포함 내용 및 구조]를 엄수하고, 제3문단의 고정 문구와 마무리 문장을 반드시 포함할 것.",\n' +
     '  "cautions": [\n' +
     (isChild ?
@@ -1206,7 +1206,7 @@ function buildGuideHtml(g, patientName, data) {
     '<div style="margin-top:12pt;padding:9pt 12pt;border:0.5pt solid #c8d8c0;border-radius:3pt;background:#f5faf6;">' +
     '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8pt;">' +
     '<div style="font-size:9pt;color:#4a5a4a;line-height:1.75;max-width:72%;letter-spacing:-0.01em;">' +
-    '본 한약은 <b>경희늘푸른한의원</b> 담당 한의사가 환자 개인에게 맞춰 직접 처방한 맞춤 한약입니다.<br>' +
+    '본 한약은 <b>경희늘푸른한의원</b> 담당 한의사가 환자분의 체질과 증상에 맞춰 직접 처방한 맞춤 한약입니다.<br>' +
     '<b>GMP 인증</b> 제조사의 엄격한 품질 검사를 통과한 의약품용 한약재만을 사용합니다.' +
     '</div>' +
     '<div style="text-align:right;">' +
