@@ -1049,7 +1049,13 @@ function generateGuide() {
       var text = (useGemini ? response.text : response.data.content[0].text).trim();
       var match = text.match(/\{[\s\S]*\}/);
       if (!match) throw new Error('JSON 파싱 실패');
-      var guide = JSON.parse(match[0]);
+      var sanitized = match[0].replace(/[\x00-\x1F\x7F]/g, function(c) {
+        if (c === '\n') return '\\n';
+        if (c === '\r') return '\\r';
+        if (c === '\t') return '\\t';
+        return '';
+      });
+      var guide = JSON.parse(sanitized);
 
       // ── 약재 기반 주의사항 자동 주입 ──────────────────
       var prescFull = (data.prescName || '') + ' ' + (data.prescDetail || '') + ' ' + (soapS || '');
