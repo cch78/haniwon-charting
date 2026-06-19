@@ -692,7 +692,7 @@ function _runAnalysis(raw, extraMemo) {
 
   chrome.runtime.sendMessage({
     type: 'CLAUDE_API', apiKey: CFG.apiKey,
-    payload: { model:'claude-sonnet-4-20250514', max_tokens:2000, messages:[{role:'user',content:prompt}] }
+    payload: { model:'claude-sonnet-4-5-20251001', max_tokens:2000, messages:[{role:'user',content:prompt}] }
   }, function(response) {
     document.getElementById('loading3').style.display = 'none';
     if (chrome.runtime.lastError) { showStatus('런타임 오류: ' + chrome.runtime.lastError.message, 'err'); return; }
@@ -1040,7 +1040,7 @@ function generateGuide() {
   chrome.runtime.sendMessage(
     useGemini
       ? { type: 'GEMINI_API', apiKey: CFG.geminiKey, prompt: prompt }
-      : { type: 'CLAUDE_API', apiKey: CFG.apiKey, payload: { model:'claude-sonnet-4-20250514', max_tokens:2500, messages:[{role:'user',content:prompt}] } },
+      : { type: 'CLAUDE_API', apiKey: CFG.apiKey, payload: { model:'claude-sonnet-4-5-20251001', max_tokens:2500, messages:[{role:'user',content:prompt}] } },
   function(response) {
     document.getElementById('loading4').style.display = 'none';
     document.getElementById('btn-gen-guide').disabled = false;
@@ -1373,7 +1373,7 @@ function generateSmsMsg() {
 
   chrome.runtime.sendMessage({
     type: 'CLAUDE_API', apiKey: CFG.apiKey,
-    payload: { model:'claude-sonnet-4-20250514', max_tokens:1000, messages:[{role:'user',content:prompt}] }
+    payload: { model:'claude-sonnet-4-5-20251001', max_tokens:1000, messages:[{role:'user',content:prompt}] }
   }, function(response) {
     document.getElementById('loading5').style.display = 'none';
     document.getElementById('btn-gen-sms').disabled = false;
