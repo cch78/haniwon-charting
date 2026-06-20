@@ -1049,12 +1049,24 @@ function generateGuide() {
       var text = (useGemini ? response.text : response.data.content[0].text).trim();
       var match = text.match(/\{[\s\S]*\}/);
       if (!match) throw new Error('JSON 파싱 실패');
-      var sanitized = match[0].replace(/[\x00-\x1F\x7F]/g, function(c) {
-        if (c === '\n') return '\\n';
-        if (c === '\r') return '\\r';
-        if (c === '\t') return '\\t';
-        return '';
-      });
+      var raw = match[0];
+      // 문자열 내부의 제어문자만 이스케이프 (구조적 공백은 유지)
+      var sanitized = '';
+      var inStr = false, esc = false;
+      for (var i = 0; i < raw.length; i++) {
+        var ch = raw[i];
+        if (esc) { sanitized += ch; esc = false; continue; }
+        if (ch === '\\' && inStr) { sanitized += ch; esc = true; continue; }
+        if (ch === '"') { sanitized += ch; inStr = !inStr; continue; }
+        if (inStr && ch.charCodeAt(0) < 0x20) {
+          if (ch === '\n') sanitized += '\\n';
+          else if (ch === '\r') sanitized += '\\r';
+          else if (ch === '\t') sanitized += '\\t';
+          // 그 외 제어문자 제거
+        } else {
+          sanitized += ch;
+        }
+      }
       var guide = JSON.parse(sanitized);
 
       // ── 약재 기반 주의사항 자동 주입 ──────────────────
