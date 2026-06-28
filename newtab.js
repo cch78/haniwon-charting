@@ -242,8 +242,10 @@ function loadTodayPatients() {
       el.innerHTML = '<div class="dashboard-empty">환자 정보를 불러올 수 없습니다</div>';
       return;
     }
-    // 접수시간 기준 정렬
+    // 대기(1) 먼저, 그 안에서 접수시간 순
     data.sort(function(a, b) {
+      if (a.진료상태 === 1 && b.진료상태 !== 1) return -1;
+      if (a.진료상태 !== 1 && b.진료상태 === 1) return 1;
       return (a.접수시간||'').localeCompare(b.접수시간||'');
     });
     _todayPatients = data;
