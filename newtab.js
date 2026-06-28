@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initSpeech();
   bindAll();
   checkUpdateBanner();
+  loadTodayPatients();
 });
 
 // ── 업데이트 배너 ────────────────────────────────────────
@@ -64,6 +65,7 @@ function bindAll() {
   document.getElementById('btn-close-settings').addEventListener('click', toggleSettings);
 
   // 탭1
+  document.getElementById('btn-dashboard-refresh').addEventListener('click', loadTodayPatients);
   document.getElementById('btn-search').addEventListener('click', searchPatient);
   document.getElementById('search-input').addEventListener('keydown', function(e){ if(e.key==='Enter') searchPatient(); });
   document.getElementById('btn-clear-patient').addEventListener('click', clearPatient);
@@ -222,6 +224,73 @@ function getName(p) { return p.수진자명||p.이름||p.성명||p.환자명||p.
 function getBirth(p) { return p.생일||p.생년월일||''; }
 function getPhone(p) { return p.이동전화||p.전화번호||p.연락번호||p.핸드폰||''; }
 
+// ── 탭1: 오늘 환자 대시보드 ─────────────────────────────
+var _todayPatients = [];
+
+function loadTodayPatients() {
+  var el = document.getElementById('today-list');
+  el.innerHTML = '<div class="dashboard-loading">불러오는 중...</div>';
+  document.getElementById('dashboard-count').textContent = '';
+  var today = new Date().toISOString().split('T')[0];
+  chrome.runtime.sendMessage({
+    type: 'HANYMAC_API',
+    url: authUrl(base() + '/patinfo/waitpat?date=' + today),
+    options: { credentials: 'omit' }
+  }, function(response) {
+    var data = (response && response.success && response.data && response.data.data) ? response.data.data : null;
+    if (!data) {
+      el.innerHTML = '<div class="dashboard-empty">환자 정보를 불러올 수 없습니다</div>';
+      return;
+    }
+    // 접수시간 기준 정렬
+    data.sort(function(a, b) {
+      return (a.접수시간||'').localeCompare(b.접수시간||'');
+    });
+    _todayPatients = data;
+    renderTodayPatients();
+  });
+}
+
+function renderTodayPatients() {
+  var data = _todayPatients;
+  var el = document.getElementById('today-list');
+  if (!data.length) {
+    el.innerHTML = '<div class="dashboard-empty">오늘 접수된 환자가 없습니다</div>';
+    document.getElementById('dashboard-count').textContent = '';
+    return;
+  }
+  var waitCount = data.filter(function(r){ return r.진료상태 === 1; }).length;
+  var total = data.length;
+  document.getElementById('dashboard-count').textContent = '대기 ' + waitCount + ' / 전체 ' + total;
+
+  var currentChartNo = state.patient ? state.patient.챠트번호 : null;
+  el.innerHTML = data.map(function(r, i) {
+    var isWait = r.진료상태 === 1;
+    var statusClass = isWait ? 'status-wait' : 'status-done';
+    var badgeClass = isWait ? 'wait' : 'done';
+    var badgeText = isWait ? '대기' : '완료';
+    var timeStr = (r.접수시간||'').slice(0,5);
+    var isActive = currentChartNo && r.챠트번호 === currentChartNo ? ' active' : '';
+    return '<div class="today-item ' + statusClass + isActive + '" data-today-idx="' + i + '">' +
+      '<span class="today-seq">' + (i+1) + '</span>' +
+      '<span class="today-name">' + esc(r.수진자명||'-') + '</span>' +
+      '<span class="today-time">' + esc(timeStr) + '</span>' +
+      '<span class="today-badge ' + badgeClass + '">' + badgeText + '</span>' +
+    '</div>';
+  }).join('');
+
+  el.querySelectorAll('.today-item').forEach(function(item) {
+    item.addEventListener('click', function() {
+      var idx = parseInt(this.dataset.todayIdx);
+      var p = _todayPatients[idx];
+      // 대시보드 active 표시
+      el.querySelectorAll('.today-item').forEach(function(x){ x.classList.remove('active'); });
+      this.classList.add('active');
+      selectPatient(p);
+    });
+  });
+}
+
 // ── 탭1: 환자 검색 ───────────────────────────────────
 function searchPatient() {
   var q = document.getElementById('search-input').value.trim();
@@ -264,7 +333,7 @@ function doSearchPatient(q, rl) {
 }
 
 function selectPatient(idx) {
-  var p = window._searchData[idx];
+  var p = (typeof idx === 'object') ? idx : window._searchData[idx];
   document.getElementById('result-list').style.display = 'none';
   showStatus('진료 기록을 불러오는 중...', 'info');
   chrome.runtime.sendMessage({
@@ -311,6 +380,7 @@ function clearPatient() {
   document.getElementById('load-chart-row').style.display = 'none';
   document.getElementById('load-chart-preview').style.display = 'none';
   document.getElementById('search-input').value = '';
+  document.querySelectorAll('.today-item').forEach(function(x){ x.classList.remove('active'); });
   document.getElementById('btn-next1').disabled = true;
   document.getElementById('tab1').querySelector('.tab-txt').textContent = '환자선택';
   document.getElementById('tab1').classList.remove('done');

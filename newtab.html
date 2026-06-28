@@ -98,6 +98,26 @@ textarea{resize:vertical;line-height:1.75;}
 .visit-row{display:none;gap:8px;align-items:center;margin-top:8px;}
 .visit-row label{font-size:12px;color:var(--text2);font-weight:500;white-space:nowrap;}
 .visit-row select{flex:1;}
+/* ── 오늘 환자 대시보드 ── */
+.dashboard-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.dashboard-title{font-size:13px;font-weight:700;color:var(--text2);}
+.dashboard-count{font-size:11px;color:var(--text3);}
+.dashboard-refresh{background:none;border:none;font-size:13px;cursor:pointer;color:var(--text3);padding:2px 4px;border-radius:4px;}
+.dashboard-refresh:hover{background:var(--surface2);}
+.today-list{display:flex;flex-direction:column;gap:5px;max-height:240px;overflow-y:auto;}
+.today-item{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);cursor:pointer;transition:background .12s;background:var(--surface);}
+.today-item:hover{background:var(--green-bg);border-color:var(--green-light);}
+.today-item.status-wait{border-left:3px solid var(--green);}
+.today-item.status-done{border-left:3px solid var(--border);opacity:.7;}
+.today-item.active{background:var(--green-bg);border-color:var(--green);opacity:1;}
+.today-seq{font-size:11px;color:var(--text3);width:18px;text-align:center;flex-shrink:0;}
+.today-name{font-size:14px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.today-time{font-size:11px;color:var(--text3);flex-shrink:0;}
+.today-badge{font-size:10px;padding:2px 6px;border-radius:10px;flex-shrink:0;font-weight:600;}
+.today-badge.wait{background:#e9f5ee;color:var(--green);}
+.today-badge.done{background:var(--surface2);color:var(--text3);}
+.dashboard-empty{text-align:center;padding:16px;font-size:12px;color:var(--text3);}
+.dashboard-loading{text-align:center;padding:12px;font-size:12px;color:var(--text3);}
 
 /* ── 2탭: 녹음 ── */
 .rec-area{display:flex;align-items:center;gap:16px;margin-bottom:10px;}
@@ -264,6 +284,20 @@ textarea{resize:vertical;line-height:1.75;}
 
   <!-- ══ 탭1: 환자 선택 ══ -->
   <div id="panel1">
+    <!-- 오늘 환자 대시보드 -->
+    <div class="card" id="dashboard-card">
+      <div class="dashboard-header">
+        <span class="dashboard-title">📋 오늘 환자</span>
+        <span>
+          <span class="dashboard-count" id="dashboard-count"></span>
+          <button class="dashboard-refresh" id="btn-dashboard-refresh" title="새로고침">🔄</button>
+        </span>
+      </div>
+      <div id="today-list" class="today-list">
+        <div class="dashboard-loading">불러오는 중...</div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-title">👤 환자 검색</div>
       <div class="search-row">
