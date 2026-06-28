@@ -1548,15 +1548,16 @@ function filterGuideHistory() {
 
 function renderGuideHistory() {
   var q = (document.getElementById('guide-history-search').value || '').trim();
-  var list = _guideHistoryAll.filter(function(r) {
-    return !q || (r['환자명'] || '').indexOf(q) >= 0;
+  var list = _guideHistoryAll.map(function(r, i) { return { r: r, i: i }; }).filter(function(item) {
+    return !q || (item.r['환자명'] || '').indexOf(q) >= 0;
   });
   var el = document.getElementById('guide-history-list');
   if (!list.length) {
     el.innerHTML = '<div class="empty">저장된 복약지도문이 없습니다.</div>';
     return;
   }
-  el.innerHTML = list.map(function(r, i) {
+  el.innerHTML = list.map(function(item) {
+    var r = item.r, i = item.i;
     var guideText = r['복약지도문'] || '';
     var preview = guideText.replace('[용법] ', '').slice(0, 80) + (guideText.length > 80 ? '...' : '');
     return '<div class="rec-card" style="margin-bottom:8px;">' +
