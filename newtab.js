@@ -1139,7 +1139,33 @@ function generateGuide() {
           sanitized += ch;
         }
       }
-      var guide = JSON.parse(sanitized);
+      var guide;
+      try {
+        guide = JSON.parse(sanitized);
+      } catch(parseErr) {
+        // fallback: 필드별 regex 추출 (AI가 따옴표 미이스케이프한 경우)
+        var extractStr = function(src, key) {
+          var re = new RegExp('"' + key + '"\\s*:\\s*"((?:[\\s\\S]*?))"(?=\\s*[,}])');
+          var m = src.match(re);
+          return m ? m[1].replace(/\\n/g,'\n').replace(/\\r/g,'').replace(/\\t/g,'\t') : '';
+        };
+        var extractArr = function(src, key) {
+          var re = new RegExp('"' + key + '"\\s*:\\s*\\[([\\s\\S]*?)\\]');
+          var m = src.match(re);
+          if (!m) return [];
+          var items = [], ir = /"((?:[^"\\]|\\.)*?)"/g, im;
+          while ((im = ir.exec(m[1])) !== null) items.push(im[1].replace(/\\n/g,'\n'));
+          return items;
+        };
+        guide = {
+          patientName: extractStr(raw, 'patientName'),
+          medType: extractStr(raw, 'medType'),
+          dosageSummary: extractStr(raw, 'dosageSummary'),
+          letter: extractStr(raw, 'letter'),
+          cautions: extractArr(raw, 'cautions')
+        };
+        if (!guide.letter) throw new Error('JSON 구조 추출 실패: ' + parseErr.message);
+      }
 
       // ── 약재 기반 주의사항 자동 주입 ──────────────────
       var prescFull = (data.prescName || '') + ' ' + (data.prescDetail || '') + ' ' + (soapS || '');
