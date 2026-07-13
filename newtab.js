@@ -415,40 +415,38 @@ function updateLoadChartPreview() {
 
 // SOAP 텍스트 파싱: [S]/[O]/[A]/[P] 또는 S:/O:/A:/P: 패턴 분리
 function parseSoapText(text) {
-  if (!text) return { S:'', O:'', A:'', P:'' };
+  if (!text) return { cc:'', os:'', pi:'', pa:'', ps:'', A:'', P:'' };
 
-  // 패턴 1: [S], [O], [A], [P]
-  var m1 = text.match(/\[S\]([\s\S]*?)(?=\[O\]|$)/i);
-  var m2 = text.match(/\[O\]([\s\S]*?)(?=\[A\]|$)/i);
-  var m3 = text.match(/\[A\]([\s\S]*?)(?=\[P\]|$)/i);
-  var m4 = text.match(/\[P\]([\s\S]*?)$/i);
+  // 태그 추출 헬퍼 — 임의 태그 순서에 무관하게 동작
+  var tag = function(t) {
+    var re = new RegExp('\\[' + t + '\\]([\\s\\S]*?)(?=\\[[^\\]]+\\]|$)', 'i');
+    var m = text.match(re); return m ? m[1].trim() : '';
+  };
 
-  if (m1 || m2 || m3 || m4) {
-    return {
-      S: (m1 ? m1[1] : '').trim(),
-      O: (m2 ? m2[1] : '').trim(),
-      A: (m3 ? m3[1] : '').trim(),
-      P: (m4 ? m4[1] : '').trim()
-    };
+  // 패턴 1: 현재 저장 형식 [CC] [OS] [PI] [PA] [환자진술] [A] [P]
+  var cc = tag('CC'), os = tag('OS'), pi = tag('PI'), pa = tag('PA');
+  var ps = tag('환자진술'), a = tag('A'), p = tag('P');
+  if (cc || os || pi || pa || a || p) {
+    return { cc:cc, os:os, pi:pi, pa:pa, ps:ps, A:a, P:p };
   }
 
-  // 패턴 2: S: / O: / A: / P: (줄바꿈 기반)
+  // 패턴 2: 구형 [S] [O] [A] [P]
+  var s2 = tag('S'), o2 = tag('O'), a2 = tag('A'), p2 = tag('P');
+  if (s2 || o2 || a2 || p2) {
+    return { cc:'', os:s2, pi:'', pa:o2, ps:'', A:a2, P:p2 };
+  }
+
+  // 패턴 3: S: / O: / A: / P: (줄바꿈 기반)
   var m5 = text.match(/S\s*[:\-]([\s\S]*?)(?=O\s*[:\-]|$)/i);
   var m6 = text.match(/O\s*[:\-]([\s\S]*?)(?=A\s*[:\-]|$)/i);
   var m7 = text.match(/A\s*[:\-]([\s\S]*?)(?=P\s*[:\-]|$)/i);
   var m8 = text.match(/P\s*[:\-]([\s\S]*?)$/i);
-
   if (m5 || m6 || m7 || m8) {
-    return {
-      S: (m5 ? m5[1] : '').trim(),
-      O: (m6 ? m6[1] : '').trim(),
-      A: (m7 ? m7[1] : '').trim(),
-      P: (m8 ? m8[1] : '').trim()
-    };
+    return { cc:'', os:(m5?m5[1]:'').trim(), pi:'', pa:(m6?m6[1]:'').trim(), ps:'', A:(m7?m7[1]:'').trim(), P:(m8?m8[1]:'').trim() };
   }
 
   // 패턴 없으면 전체를 raw-text로 (AI 분석용)
-  return { S: text.trim(), O: '', A: '', P: '', raw: true };
+  return { cc:'', os:'', pi:'', pa:'', ps:'', A:'', P:'', raw: true, rawText: text.trim() };
 }
 
 // 실제 불러오기 실행
@@ -466,26 +464,25 @@ function loadChartFromHanymac() {
 
   if (parsed.raw) {
     // SOAP 구조가 없는 경우 → raw-text에 넣고 탭2로
-    document.getElementById('raw-text').value = memo;
-    document.getElementById('inline-raw-text').value = memo;
-    state.rawText = memo;
+    document.getElementById('raw-text').value = parsed.rawText || memo;
+    document.getElementById('inline-raw-text').value = parsed.rawText || memo;
+    state.rawText = parsed.rawText || memo;
     switchTab(2);
     showStatus('📋 ' + date + ' 차트를 불러왔습니다. AI 분석을 실행하거나 직접 수정하세요.', 'ok');
   } else {
-    // 구형 SOAP 구조 → 새 필드로 매핑 (한의맥 호환)
-    document.getElementById('chart-cc').value = '';
-    document.getElementById('chart-os').value = parsed.S; // 구 S → OS+PI 로 임시 매핑
-    document.getElementById('chart-pi').value = '';
-    document.getElementById('chart-pa').value = parsed.O;
-    document.getElementById('chart-ps').value = '';
-    document.getElementById('chart-a').value = parsed.A;
-    document.getElementById('chart-p').value = parsed.P;
+    document.getElementById('chart-cc').value = parsed.cc || '';
+    document.getElementById('chart-os').value = parsed.os || '';
+    document.getElementById('chart-pi').value = parsed.pi || '';
+    document.getElementById('chart-pa').value = parsed.pa || '';
+    document.getElementById('chart-ps').value = parsed.ps || '';
+    document.getElementById('chart-a').value  = parsed.A  || '';
+    document.getElementById('chart-p').value  = parsed.P  || '';
     // raw-text에도 저장 (AI 재분석 시 활용)
     document.getElementById('raw-text').value = memo;
     document.getElementById('inline-raw-text').value = memo;
     state.rawText = memo;
-    // state에 기본 analysisResult 구조 세팅 (복약지도문·문자초안 탭 활성화용)
-    var ch = { cc:'', os:parsed.S, pi:'', pa:parsed.O, ps:'', a:parsed.A, p:parsed.P };
+    // state에 analysisResult 구조 세팅 (복약지도문·문자초안 탭 활성화용)
+    var ch = { cc:parsed.cc||'', os:parsed.os||'', pi:parsed.pi||'', pa:parsed.pa||'', ps:parsed.ps||'', a:parsed.A||'', p:parsed.P||'' };
     if (!state.analysisResult) {
       state.analysisResult = { chart: ch, diagnosis: { korean: [], western: [] }, smsText: '', evaluation: {} };
     } else {
