@@ -1083,7 +1083,7 @@ function generateGuide() {
     '처방명 및 핵심 약재: ' + data.prescName + (data.prescDetail ? ' / ' + data.prescDetail : '') + '\n' +
     '용법: ' + data.dosage + '\n기간: ' + (data.duration||'미입력') + '\n' +
     '한의학 변증: ' + (data.diagnosis||'미입력') + '\n평가 (SOAP-A): ' + soapA + '\n\n' +
-    '아래 JSON 형식으로만 응답하세요 (마크다운 없이, 순수 JSON만):\n' +
+    '아래 JSON 형식으로만 응답하세요 (마크다운 없이, 순수 JSON만).\n⚠️ JSON 문자열 값 안에 큰따옴표(")를 절대 사용하지 마세요. 인용이 필요하면 『』나 〈〉를 사용하세요.\n' +
     '{\n' +
     '  "patientName": "' + data.patientName + '",\n' +
     '  "medType": "' + data.medType + '",\n' +
@@ -1143,26 +1143,41 @@ function generateGuide() {
       try {
         guide = JSON.parse(sanitized);
       } catch(parseErr) {
-        // fallback: 필드별 regex 추출 (AI가 따옴표 미이스케이프한 경우)
-        var extractStr = function(src, key) {
-          var re = new RegExp('"' + key + '"\\s*:\\s*"((?:[\\s\\S]*?))"(?=\\s*[,}])');
-          var m = src.match(re);
-          return m ? m[1].replace(/\\n/g,'\n').replace(/\\r/g,'').replace(/\\t/g,'\t') : '';
+        // fallback: 키 위치 기반 슬라이싱 (따옴표 미이스케이프 등 대응)
+        var getStrVal = function(src, key, nextKey) {
+          var kp = src.indexOf('"' + key + '"');
+          if (kp < 0) return '';
+          var colon = src.indexOf(':', kp);
+          var oq = src.indexOf('"', colon + 1);
+          if (oq < 0) return '';
+          var start = oq + 1;
+          var end;
+          if (nextKey) {
+            var nkp = src.indexOf('"' + nextKey + '"', start);
+            end = nkp > start ? src.lastIndexOf('"', nkp - 1) : src.length;
+          } else {
+            end = src.lastIndexOf('"');
+          }
+          return src.slice(start, end).replace(/\\n/g,'\n').replace(/\\r/g,'').replace(/\\t/g,'\t');
         };
-        var extractArr = function(src, key) {
-          var re = new RegExp('"' + key + '"\\s*:\\s*\\[([\\s\\S]*?)\\]');
-          var m = src.match(re);
-          if (!m) return [];
-          var items = [], ir = /"((?:[^"\\]|\\.)*?)"/g, im;
-          while ((im = ir.exec(m[1])) !== null) items.push(im[1].replace(/\\n/g,'\n'));
+        var getArrVal = function(src, key) {
+          var kp = src.indexOf('"' + key + '"');
+          if (kp < 0) return [];
+          var ob = src.indexOf('[', kp);
+          if (ob < 0) return [];
+          var cb = src.indexOf(']', ob);
+          if (cb < 0) return [];
+          var inner = src.slice(ob + 1, cb);
+          var items = [], re = /"((?:[^"\\]|\\.)*)"/g, m;
+          while ((m = re.exec(inner)) !== null) items.push(m[1].replace(/\\n/g,'\n'));
           return items;
         };
         guide = {
-          patientName: extractStr(raw, 'patientName'),
-          medType: extractStr(raw, 'medType'),
-          dosageSummary: extractStr(raw, 'dosageSummary'),
-          letter: extractStr(raw, 'letter'),
-          cautions: extractArr(raw, 'cautions')
+          patientName: getStrVal(raw, 'patientName', 'medType'),
+          medType:     getStrVal(raw, 'medType', 'dosageSummary'),
+          dosageSummary: getStrVal(raw, 'dosageSummary', 'letter'),
+          letter:      getStrVal(raw, 'letter', 'cautions'),
+          cautions:    getArrVal(raw, 'cautions')
         };
         if (!guide.letter) throw new Error('JSON 구조 추출 실패: ' + parseErr.message);
       }
