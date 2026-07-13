@@ -878,14 +878,23 @@ function saveToHanymac() {
   if (!state.patient) { showStatus('환자를 선택해주세요.', 'err'); return; }
   var text = buildChartText();
   if (!text) { showStatus('차트 내용이 없습니다.', 'err'); return; }
-  var targetData = state.patient;
-  if (state.visitList.length > 0) {
-    var idx = parseInt(document.getElementById('visit-select').value);
-    targetData = Object.assign({}, state.patient, state.visitList[idx]);
+  var today = new Date().toISOString().split('T')[0];
+  var chartNum = state.patient.챠트번호;
+  var treatDate, treatNum;
+  // 오늘 날짜 환자(대시보드 waitpat 선택)는 patient 자체의 진료정보 사용
+  // 그 외(검색 또는 과거 차트 불러오기)는 visit-select 기준
+  if (state.patient.진료일자 === today) {
+    treatDate = today;
+    treatNum = state.patient.진료번호 || 1;
+  } else if (state.visitList.length > 0) {
+    var idx = parseInt(document.getElementById('visit-select').value) || 0;
+    var v = state.visitList[idx] || {};
+    treatDate = v.진료일자 || today;
+    treatNum = v.진료번호 || '';
+  } else {
+    treatDate = today;
+    treatNum = '';
   }
-  var chartNum = targetData.챠트번호;
-  var treatDate = targetData.진료일자||targetData.일자||new Date().toISOString().split('T')[0].replace(/-/g,'');
-  var treatNum = targetData.진료번호||'';
   var btn = document.getElementById('btn-save-hanymac');
   btn.textContent = '저장 중...'; btn.disabled = true;
   chrome.runtime.sendMessage({
