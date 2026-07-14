@@ -1865,7 +1865,14 @@ function loadGuideFromHistory(idx) {
   document.getElementById('edit-cautions').value = (g.cautions || []).join('\n');
   document.getElementById('guide-edit-panel').style.display = '';
   document.getElementById('guide-preview').style.display = '';
-  renderGuidePreview();
+  // 미리보기 렌더링 (applyGuideEdit와 동일 방식)
+  var pd = state.prescData || {};
+  pd.patientName = r['환자명'] || pd.patientName || '환자';
+  pd.prescName = r['처방명'] || pd.prescName || '';
+  pd.medType = g.medType || pd.medType || '맞춤 한약';
+  state.prescData = pd;
+  document.getElementById('guide-screen').innerHTML = buildGuideHtml(g, pd.patientName, pd);
+  document.getElementById('print-area').innerHTML = '<div class="print-page">' + buildGuideHtml(g, pd.patientName, pd) + '</div>';
 
   closeGuideHistory();
   // 탭4로 이동

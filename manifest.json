@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "한의원 진료 차팅 시스템",
-  "version": "2.9",
+  "version": "2.10",
   "description": "한의맥 연동 + Claude AI + Whisper STT + 구글 시트 저장 + 카카오톡 발송",
   "chrome_url_overrides": {
     "newtab": "newtab.html"
