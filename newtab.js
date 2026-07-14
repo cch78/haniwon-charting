@@ -743,6 +743,7 @@ function _runAnalysis(raw, extraMemo) {
     '- prognosis: 간단한 예후 안내\n' +
     (prevVisitContext ? '- progress: 이전 대비 경과 (호전/악화/유지)\n' : '') +
     '\n아래 JSON으로만 응답 (마크다운 없이 순수 JSON):\n' +
+    '⚠️ JSON 문자열 값 안에 큰따옴표(")를 절대 사용하지 마세요. 인용이 필요하면 『』나 〈〉를 사용하세요.\n' +
     '{\n' +
     '  "chart": {\n' +
     '    "cc": "주증상 한 줄 요약",\n' +
@@ -770,7 +771,7 @@ function _runAnalysis(raw, extraMemo) {
       var text = response.data.content[0].text.trim();
       var match = text.match(/\{[\s\S]*\}/);
       if (!match) throw new Error('JSON 파싱 실패');
-      var result = JSON.parse(match[0]);
+      var result = safeJsonParse(match[0]);
       state.analysisResult = result;
       renderAnalysis(result);
     } catch(e) { showStatus('파싱 오류: ' + e.message, 'err'); }
@@ -912,6 +913,48 @@ function saveToHanymac() {
   });
 }
 
+// ── 공용: AI 응답 JSON 강건 파싱 ──────────────────────
+// 1) 문자열 내부 제어문자 이스케이프 → 2) 파싱 실패 시 미이스케이프 따옴표 복구 후 재시도
+function safeJsonParse(raw) {
+  var sanitized = '', inStr = false, esc = false;
+  for (var i = 0; i < raw.length; i++) {
+    var ch = raw[i];
+    if (esc) { sanitized += ch; esc = false; continue; }
+    if (ch === '\\' && inStr) { sanitized += ch; esc = true; continue; }
+    if (ch === '"') { sanitized += ch; inStr = !inStr; continue; }
+    if (inStr && ch.charCodeAt(0) < 0x20) {
+      if (ch === '\n') sanitized += '\\n';
+      else if (ch === '\r') sanitized += '\\r';
+      else if (ch === '\t') sanitized += '\\t';
+    } else {
+      sanitized += ch;
+    }
+  }
+  try { return JSON.parse(sanitized); }
+  catch(e) { return JSON.parse(repairInnerQuotes(sanitized)); }
+}
+
+// 문자열 값 내부의 이스케이프 안 된 큰따옴표를 \" 로 복구
+// (닫는 따옴표 뒤에는 반드시 , } ] : 중 하나가 와야 한다는 JSON 규칙 이용)
+function repairInnerQuotes(s) {
+  var out = '', inStr = false, esc = false;
+  for (var i = 0; i < s.length; i++) {
+    var ch = s[i];
+    if (esc) { out += ch; esc = false; continue; }
+    if (ch === '\\' && inStr) { out += ch; esc = true; continue; }
+    if (ch === '"') {
+      if (!inStr) { inStr = true; out += ch; continue; }
+      var j = i + 1;
+      while (j < s.length && /\s/.test(s[j])) j++;
+      if (j >= s.length || ',}]:'.indexOf(s[j]) >= 0) { inStr = false; out += ch; }
+      else { out += '\\"'; }
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
 // ── 구글 시트 저장 ────────────────────────────────────
 function saveToGoogleSheet(extraData) {
   if (!CFG.gsUrl) return;
@@ -992,6 +1035,40 @@ var guideCustomPrompt = [
 })();
 
 // ── 탭4: 복약지도문 생성 ─────────────────────────────
+// ── 재복용 환자: 구글 시트에서 이전 처방 이력 조회 ────
+function fetchPrevPrescriptions(name, cb) {
+  if (!CFG.gsUrl || !name || name === '환자') { cb(''); return; }
+  var done = false;
+  var timer = setTimeout(function(){ done = true; cb(''); }, 6000); // 시트 응답 지연 시 이력 없이 진행
+  chrome.runtime.sendMessage({ type:'GOOGLE_SHEET_GET', url: CFG.gsUrl }, function(resp) {
+    if (done) return;
+    done = true; clearTimeout(timer);
+    var recs = (resp && resp.success && resp.records) ? resp.records : [];
+    var prev = recs.filter(function(r){
+      return (r['환자명']||'') === name && String(r['처방명']||'').trim() &&
+             r['id'] !== state._savedRecordId; // 현재 세션에서 저장한 기록은 제외
+    });
+    if (!prev.length) { cb(''); return; }
+    prev.sort(function(a,b){ return String(a['진료일자']||'').localeCompare(String(b['진료일자']||'')); });
+    var recent = prev.slice(-3);
+    var ctx = '\n=== 이전 처방 이력 (재복용 환자) ===\n' +
+      '이 환자는 본원에서 아래 한약을 복용한 이력이 있습니다 (이번이 ' + (prev.length + 1) + '번째 처방입니다).\n';
+    recent.forEach(function(r){
+      ctx += '▶ [' + (r['진료일자']||'날짜미상') + '] ' + r['처방명'] +
+        (r['처방구성'] ? ' | 구성: ' + String(r['처방구성']).slice(0,150) : '') +
+        (r['한의학변증'] ? ' | 변증: ' + r['한의학변증'] : '') +
+        (r['기간'] ? ' | 기간: ' + r['기간'] : '') + '\n';
+    });
+    ctx += '\n[재복용 환자 작성 지침 (반드시 반영)]\n' +
+      '- 첫 복용이 아니므로 첫인사를 재복용 상황에 맞게 쓸 것: 꾸준히 치료를 이어가시는 것에 대한 감사와 격려\n' +
+      '- 이번 처방이 지난 처방과 무엇이 같고 무엇이 달라졌는지(치료 목표, 약재 구성의 변화)를 편지 본문에 자연스럽게 1~2문장으로 언급할 것\n' +
+      '- 지난 복용의 경과를 이어가는 흐름으로 쓸 것 (예: 지난번 치료로 다져진 기반 위에서 이번에는 ○○에 더 집중)\n' +
+      '- 이전과 동일한 처방이라면 효과를 유지·강화하는 연속 치료의 의미를 설명할 것\n' +
+      '- 마치 처음 복용하는 환자에게 쓰는 것 같은 표현(예: 처음 뵙는, 첫 한약)은 금지\n';
+    cb(ctx);
+  });
+}
+
 function generateGuide() {
   var prescName = document.getElementById('presc-name').value.trim();
   // 처방명 없으면 SOAP-A/변증 기반으로 자동 생성
@@ -1075,6 +1152,9 @@ function generateGuide() {
     '7. 나이(세)를 편지 본문에 직접 언급하지 말 것 (예: "만 7세" 같은 표현 금지)\n'
   ) : '';
 
+  // 이전 처방 이력 조회 후 프롬프트 생성 (이력 없거나 시트 미설정이면 빈 문자열)
+  fetchPrevPrescriptions(patientName, function(prevPrescContext) {
+
   var prompt =
     '[역할 및 페르소나 설정]\n' +
     '너는 한의원에서 진료를 마친 환자들에게 따뜻하고 전문적인 위로와 처방의 의미를 전달하는 \'대표 원장\'이다. ' +
@@ -1083,6 +1163,7 @@ function generateGuide() {
     guideCustomPrompt + '\n' +
     extraInstructionBlock +
     childInstructions +
+    prevPrescContext +
     '\n[입력 데이터]\n' +
     '환자 이름/나이/성별: ' + data.patientName + (data.age ? ' / ' + data.age : '') + '\n' +
     '주요 증상(C/C) 및 생활 습관: ' + soapS + '\n' +
@@ -1128,26 +1209,9 @@ function generateGuide() {
       var match = text.match(/\{[\s\S]*\}/);
       if (!match) throw new Error('JSON 파싱 실패');
       var raw = match[0];
-      // 문자열 내부의 제어문자만 이스케이프 (구조적 공백은 유지)
-      var sanitized = '';
-      var inStr = false, esc = false;
-      for (var i = 0; i < raw.length; i++) {
-        var ch = raw[i];
-        if (esc) { sanitized += ch; esc = false; continue; }
-        if (ch === '\\' && inStr) { sanitized += ch; esc = true; continue; }
-        if (ch === '"') { sanitized += ch; inStr = !inStr; continue; }
-        if (inStr && ch.charCodeAt(0) < 0x20) {
-          if (ch === '\n') sanitized += '\\n';
-          else if (ch === '\r') sanitized += '\\r';
-          else if (ch === '\t') sanitized += '\\t';
-          // 그 외 제어문자 제거
-        } else {
-          sanitized += ch;
-        }
-      }
       var guide;
       try {
-        guide = JSON.parse(sanitized);
+        guide = safeJsonParse(raw);
       } catch(parseErr) {
         // fallback: 키 위치 기반 슬라이싱 (따옴표 미이스케이프 등 대응)
         var getStrVal = function(src, key, nextKey) {
@@ -1212,6 +1276,8 @@ function generateGuide() {
       document.getElementById('tab4').classList.add('done');
     } catch(e) { showStatus('결과 파싱 오류: ' + e.message, 'err'); }
   });
+
+  }); // fetchPrevPrescriptions 콜백 끝
 }
 
 function renderGuide(g, data, patientName) {
@@ -1513,7 +1579,7 @@ function generateSmsMsg() {
       var text = response.data.content[0].text.trim();
       var match = text.match(/\{[\s\S]*\}/);
       if (!match) throw new Error('JSON 파싱 실패');
-      var result = JSON.parse(match[0]);
+      var result = safeJsonParse(match[0]);
       document.getElementById('sms-message').value = result.message||'';
       document.getElementById('result5').style.display = '';
       document.getElementById('tab5').classList.add('done');
