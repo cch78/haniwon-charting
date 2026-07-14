@@ -960,11 +960,14 @@ function saveToGoogleSheet(extraData) {
   if (!CFG.gsUrl) return;
   var r = state.analysisResult||{}, soap=r.soap||{}, diag=r.diagnosis||{};
   var g = state.guideResult||{};
-  // 복약지도문 요약: dosageSummary + letter 앞부분
+  // 복약지도문: 용법 + 편지 + 주의사항
   var guideText = '';
   if (g.letter || g.dosageSummary) {
     guideText = (g.dosageSummary ? '[용법] ' + g.dosageSummary + '\n' : '') +
                 (g.letter ? g.letter : '');
+    if (g.cautions && g.cautions.length) {
+      guideText += '\n[주의사항]\n' + g.cautions.map(function(c){ return '- ' + c; }).join('\n');
+    }
   }
   var record = {
     id: state._savedRecordId || String(Date.now()),
@@ -1762,15 +1765,23 @@ function renderGuideHistory() {
 function loadGuideFromHistory(idx) {
   var r = _guideHistoryAll[idx];
   if (!r) return;
-  // 복약지도문 텍스트를 dosageSummary + letter로 분리
+  // 복약지도문 텍스트를 dosageSummary + letter + cautions로 분리
   var guideText = r['복약지도문'] || '';
   var dosageSummary = '';
   var letter = guideText;
-  if (guideText.startsWith('[용법] ')) {
-    var nl = guideText.indexOf('\n');
+  var cautions = [];
+  var cIdx = letter.indexOf('\n[주의사항]\n');
+  if (cIdx >= 0) {
+    cautions = letter.slice(cIdx + 8).split('\n')
+      .map(function(l){ return l.replace(/^-\s*/, '').trim(); })
+      .filter(Boolean);
+    letter = letter.slice(0, cIdx);
+  }
+  if (letter.startsWith('[용법] ')) {
+    var nl = letter.indexOf('\n');
     if (nl > 0) {
-      dosageSummary = guideText.slice(6, nl);
-      letter = guideText.slice(nl + 1);
+      dosageSummary = letter.slice('[용법] '.length, nl);
+      letter = letter.slice(nl + 1);
     }
   }
   // 처방 정보 채우기
@@ -1779,11 +1790,11 @@ function loadGuideFromHistory(idx) {
   if (r['용법']) document.getElementById('presc-dosage').value = r['용법'];
   if (r['기간']) document.getElementById('presc-duration').value = r['기간'];
 
-  // guideResult 세팅 (주의사항은 빈 배열로)
+  // guideResult 세팅
   state.guideResult = {
     dosageSummary: dosageSummary,
     letter: letter,
-    cautions: [],
+    cautions: cautions,
     medType: r['처방명'] || '',
     patientName: r['환자명'] || ''
   };
