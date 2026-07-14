@@ -1795,7 +1795,7 @@ function loadGuideFromHistory(idx) {
     dosageSummary: dosageSummary,
     letter: letter,
     cautions: cautions,
-    medType: r['처방명'] || '',
+    medType: /녹용/.test((r['처방명']||'') + (r['처방구성']||'')) ? '맞춤 녹용 보약' : '맞춤 한약',
     patientName: r['환자명'] || ''
   };
   state._savedRecordId = r['id'] || null;
