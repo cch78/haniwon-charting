@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<title>한의원 차팅 (모바일)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --green: #2d6a4f;
+    --green-d: #1b4332;
+    --green-bg: #e9f5ee;
+    --bg: #f4f6f8;
+    --card: #fff;
+    --line: #e3e7ea;
+    --text: #1e2529;
+    --text2: #5c6870;
+    --text3: #9aa5ad;
+    --red: #c0392b;
+    --amber: #b8860b;
+  }
+  body {
+    font-family: -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.5;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* ── 헤더 ── */
+  header {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--green); color: #fff;
+    padding: calc(env(safe-area-inset-top) + 12px) 14px 12px;
+    display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+  }
+  header h1 { font-size: 16px; font-weight: 700; flex: 1; }
+  .hbtn {
+    background: rgba(255,255,255,0.18); border: none; color: #fff;
+    width: 34px; height: 34px; border-radius: 9px; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .hbtn:active { background: rgba(255,255,255,0.32); }
+
+  .wrap { padding: 12px; max-width: 620px; margin: 0 auto; }
+  .screen { display: none; }
+  .screen.on { display: block; }
+
+  .card {
+    background: var(--card); border-radius: 12px; padding: 14px;
+    margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .card-t {
+    font-size: 13px; font-weight: 700; color: var(--green);
+    margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;
+  }
+
+  /* ── 버튼 ── */
+  .btn {
+    display: block; width: 100%; border: none; border-radius: 10px;
+    padding: 15px; font-size: 16px; font-weight: 700; font-family: inherit;
+    background: var(--green); color: #fff; margin-bottom: 8px;
+  }
+  .btn:active { background: var(--green-d); }
+  .btn:disabled { background: #b9c4bd; }
+  .btn.sub { background: var(--green-bg); color: var(--green); }
+  .btn.sub:active { background: #d1ead9; }
+  .btn.ghost { background: #eef1f3; color: var(--text2); }
+  .btn.rec { background: var(--red); }
+  .btn.rec:active { background: #96281b; }
+  .row { display: flex; gap: 8px; }
+  .row .btn { margin-bottom: 8px; }
+
+  /* ── 환자 리스트 ── */
+  .plist { display: flex; flex-direction: column; gap: 8px; }
+  .pitem {
+    background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--text3);
+    border-radius: 10px; padding: 13px 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .pitem:active { background: #f0f3f5; }
+  .pitem.wait { border-left-color: var(--green); }
+  .pitem.done { opacity: 0.62; }
+  .pname { font-size: 16px; font-weight: 700; flex: 1; }
+  .pmeta { font-size: 12px; color: var(--text3); margin-top: 1px; font-weight: 400; }
+  .badge {
+    font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px;
+    background: #eceff1; color: var(--text2); white-space: nowrap;
+  }
+  .badge.wait { background: var(--green-bg); color: var(--green); }
+
+  /* ── 입력 ── */
+  label { display: block; font-size: 12px; font-weight: 700; color: var(--text2); margin-bottom: 5px; }
+  textarea, input[type=text], input[type=password] {
+    width: 100%; border: 1px solid var(--line); border-radius: 9px;
+    padding: 12px; font-size: 16px; font-family: inherit; line-height: 1.55;
+    background: #fbfcfd; color: var(--text); resize: vertical;
+  }
+  textarea:focus, input:focus { outline: none; border-color: var(--green); background: #fff; }
+  .fld { margin-bottom: 12px; }
+  .fld:last-child { margin-bottom: 0; }
+
+  /* ── 상태 표시 ── */
+  #toast {
+    position: fixed; left: 12px; right: 12px; bottom: calc(env(safe-area-inset-bottom) + 14px);
+    z-index: 60; padding: 13px 15px; border-radius: 10px; font-size: 14px; font-weight: 600;
+    color: #fff; background: #333; box-shadow: 0 3px 14px rgba(0,0,0,0.25);
+    display: none; text-align: center;
+  }
+  #toast.ok  { background: var(--green); }
+  #toast.err { background: var(--red); }
+
+  .loading { text-align: center; padding: 28px 0; color: var(--text3); font-size: 14px; }
+  .spin {
+    width: 26px; height: 26px; margin: 0 auto 10px;
+    border: 3px solid var(--line); border-top-color: var(--green);
+    border-radius: 50%; animation: sp 0.8s linear infinite;
+  }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .empty { text-align: center; padding: 28px 12px; color: var(--text3); font-size: 14px; }
+
+  .rec-live {
+    background: #fff5f4; border: 1px solid #f3c9c4; border-radius: 9px;
+    padding: 10px 12px; font-size: 13px; color: var(--red); margin-bottom: 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--red); animation: bl 1s infinite; flex-shrink: 0; }
+  @keyframes bl { 50% { opacity: 0.25; } }
+
+  .hint { font-size: 12px; color: var(--text3); line-height: 1.6; margin-top: 8px; }
+  .who {
+    background: var(--green-bg); border-radius: 10px; padding: 11px 13px; margin-bottom: 12px;
+    font-size: 15px; font-weight: 700; color: var(--green-d);
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .who small { font-weight: 400; color: var(--green); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <button class="hbtn" id="btn-back" style="display:none">←</button>
+  <h1 id="title">오늘 환자</h1>
+  <button class="hbtn" id="btn-reload">↻</button>
+  <button class="hbtn" id="btn-settings">⚙</button>
+</header>
+
+<div class="wrap">
+
+  <!-- 화면 1: 오늘 환자 -->
+  <div class="screen on" id="s-list">
+    <div id="plist" class="plist"></div>
+  </div>
+
+  <!-- 화면 2: 메모 입력 -->
+  <div class="screen" id="s-memo">
+    <div class="who" id="who-memo"></div>
+    <div class="card">
+      <div class="card-t">진료 메모</div>
+      <div id="rec-live" class="rec-live" style="display:none">
+        <span class="dot"></span><span id="rec-time">녹음 중… 0:00</span>
+      </div>
+      <textarea id="memo" rows="11" placeholder="증상, 문진 내용을 입력하세요.&#10;&#10;키보드의 마이크 버튼으로 음성 입력해도 됩니다."></textarea>
+      <div class="hint">💡 키보드 마이크(🎤)를 쓰면 가장 안정적입니다. 아래 버튼은 브라우저 음성인식입니다.</div>
+    </div>
+    <button class="btn sub" id="btn-rec">🎤 음성 입력 시작</button>
+    <button class="btn" id="btn-analyze">🤖 AI 차팅 생성</button>
+    <div id="analyzing" style="display:none">
+      <div class="loading"><div class="spin"></div>차팅 생성 중… (10~20초)</div>
+    </div>
+  </div>
+
+  <!-- 화면 3: 차팅 결과 -->
+  <div class="screen" id="s-chart">
+    <div class="who" id="who-chart"></div>
+    <div class="card">
+      <div class="card-t">차팅 <span style="font-weight:400;color:var(--text3)">수정 가능</span></div>
+      <div class="fld"><label>CC 주증상</label><textarea id="c-cc" rows="2"></textarea></div>
+      <div class="fld"><label>OS 발병</label><textarea id="c-os" rows="2"></textarea></div>
+      <div class="fld"><label>PI 현병력</label><textarea id="c-pi" rows="5"></textarea></div>
+      <div class="fld"><label>PA 신체평가</label><textarea id="c-pa" rows="3"></textarea></div>
+      <div class="fld"><label>환자진술</label><textarea id="c-ps" rows="2"></textarea></div>
+      <div class="fld"><label>A 변증</label><textarea id="c-a" rows="3"></textarea></div>
+      <div class="fld"><label>P 치료계획</label><textarea id="c-p" rows="4"></textarea></div>
+    </div>
+    <button class="btn" id="btn-save">💾 한의맥 저장</button>
+    <button class="btn ghost" id="btn-copy">📋 전체 복사</button>
+  </div>
+
+  <!-- 화면 4: 설정 -->
+  <div class="screen" id="s-set">
+    <div class="card">
+      <div class="card-t">설정</div>
+      <div class="fld">
+        <label>한의맥 서버 (IP:포트)</label>
+        <input type="text" id="f-server" placeholder="192.168.0.226:6982" inputmode="url" autocapitalize="off" autocorrect="off">
+      </div>
+      <div class="fld">
+        <label>Claude API 키</label>
+        <input type="password" id="f-key" placeholder="sk-ant-..." autocapitalize="off" autocorrect="off">
+      </div>
+      <div class="hint">
+        설정은 이 기기의 브라우저에만 저장됩니다.<br>
+        한의맥 조회·저장은 <b>원내 와이파이</b>에서만 동작합니다.
+      </div>
+    </div>
+    <button class="btn" id="btn-save-set">저장</button>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
