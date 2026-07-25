@@ -450,6 +450,78 @@ function parseSoapText(text) {
 }
 
 // 실제 불러오기 실행
+// 진료평가 객체/문자열 → HTML (탭3 res-eval 표시용, 공용)
+function evaluationToHtml(ev) {
+  if (!ev) return '';
+  if (typeof ev === 'string') return '<p style="white-space:pre-wrap">'+esc(ev)+'</p>';
+  var blocks = [
+    {key:'summary', label:'📌 주요 소견 및 감별진단'},
+    {key:'treatmentPlan', label:'📋 치료 계획 설명 평가'},
+    {key:'herbAdvocacy', label:'🌿 한의학 변증 / 한약 설명 평가'},
+    {key:'nextVisit', label:'🔍 다음 진료 확인사항'},
+    {key:'prognosis', label:'📈 예후 및 치료 기간'}
+  ];
+  if (ev.progress) blocks.push({key:'progress', label:'🔄 이전 진료 대비 경과 분석', color:'#5040a8', bg:'var(--purple-bg)'});
+  var html = '';
+  blocks.forEach(function(b){
+    if (!ev[b.key]) return;
+    var color = b.color || 'var(--green)', bg = b.bg || 'var(--green-bg)';
+    html += '<div class="eval-block" style="border-left-color:'+color+';background:'+bg+'">' +
+      '<div class="eval-label" style="color:'+color+'">'+b.label+'</div>' +
+      '<div class="eval-body">'+esc(ev[b.key])+'</div></div>';
+  });
+  return html;
+}
+
+// 한의맥 차트 불러오기 후: 구글 시트의 같은 환자 최근 기록에서
+// 양방질환명·진료평가(·변증)를 가져와 복원 (한의맥엔 없는 정보라 시트가 유일한 출처)
+function restoreAnalysisFromSheet(name) {
+  if (!CFG.gsUrl || !name || name === '환자') return;
+  var done = false;
+  var timer = setTimeout(function(){ done = true; }, 6000);
+  chrome.runtime.sendMessage({ type:'GOOGLE_SHEET_GET', url: CFG.gsUrl }, function(resp){
+    if (done) return;
+    done = true; clearTimeout(timer);
+    var recs = (resp && resp.success && resp.records) ? resp.records : []; // 최신순
+    var rec = null;
+    for (var i = 0; i < recs.length; i++) {
+      if ((recs[i]['환자명']||'') !== name) continue;
+      var hasWest = String(recs[i]['양방질환명']||'').trim();
+      var hasEval = String(recs[i]['진료평가']||'').trim();
+      if (hasWest || (hasEval && hasEval !== '{}')) { rec = recs[i]; break; }
+    }
+    if (!rec) return;
+    if (!state.analysisResult) state.analysisResult = {};
+    var d = state.analysisResult.diagnosis || (state.analysisResult.diagnosis = { korean:[], western:[] });
+
+    // 양방질환
+    var west = String(rec['양방질환명']||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+    if (west.length) {
+      d.western = west;
+      var weEl = document.getElementById('diag-we');
+      if (weEl) weEl.innerHTML = west.map(function(x){ return '<div class="diag-item">• '+esc(x)+'</div>'; }).join('');
+    }
+    // 변증 (현재 비어있을 때만 보완)
+    if (!(d.korean||[]).length) {
+      var kor = String(rec['한의학변증']||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+      if (kor.length) {
+        d.korean = kor;
+        var koEl2 = document.getElementById('diag-ko');
+        if (koEl2) koEl2.innerHTML = kor.map(function(x){ return '<div class="diag-item">• '+esc(x)+'</div>'; }).join('');
+      }
+    }
+    // 진료평가
+    var evRaw = String(rec['진료평가']||'').trim();
+    if (evRaw && evRaw !== '{}') {
+      var ev; try { ev = JSON.parse(evRaw); } catch(e) { ev = evRaw; }
+      state.analysisResult.evaluation = ev;
+      var evEl = document.getElementById('res-eval');
+      if (evEl) evEl.innerHTML = evaluationToHtml(ev) || evEl.innerHTML;
+      showStatus('🗂 이전 기록에서 양방질환·진료평가를 불러왔습니다 ('+(rec['진료일자']||'')+').', 'ok');
+    }
+  });
+}
+
 // A(변증) 필드 텍스트에서 변증명만 추출
 // "주변증: 간양상항(肝陽上亢) - 설명\n겸증: 기울비허(氣鬱脾虛) - 설명" → ["간양상항(肝陽上亢)","기울비허(氣鬱脾虛)"]
 function deriveKoDiagFromA(aText) {
@@ -510,6 +582,8 @@ function loadChartFromHanymac() {
     switchTab(3);
     document.getElementById('tab3').classList.add('done');
     showStatus('✅ ' + date + ' 차트를 불러왔습니다. 바로 확인하거나 AI 재분석 할 수 있습니다.', 'ok');
+    // 한의맥엔 없는 양방질환·진료평가를 구글 시트 최근 기록에서 복원
+    restoreAnalysisFromSheet(state.patient ? getName(state.patient) : '');
   }
 }
 function initSpeech() {
