@@ -54,6 +54,18 @@ function doPost(e) {
   }
 }
 
+// ── 컬럼 보정(1회 실행용) ────────────────────────
+// Apps Script 편집기에서 이 함수를 직접 실행하면
+// 누락된 컬럼(한의학변증·양방질환명·진료평가 등)이 시트에 즉시 추가됩니다.
+// 재배포만으로는 다음 저장 때 자동 추가되지만, 즉시 확인하고 싶을 때 사용.
+function repairColumns() {
+  var ss = SpreadsheetApp.openById(SS_ID);
+  var sheet = ss.getSheetByName(RECORD_SHEET);
+  if (!sheet) sheet = createRecordSheet(ss);
+  var headers = getHeaders(sheet); // 누락 컬럼 자동 추가
+  return '현재 컬럼: ' + headers.join(', ');
+}
+
 // ── 진료기록 저장 ────────────────────────────────
 function saveRecord(record) {
   var ss = SpreadsheetApp.openById(SS_ID);
@@ -96,8 +108,12 @@ function getRecords() {
 }
 
 // ── 헤더 관리 ────────────────────────────────────
+// 확장 프로그램(newtab.js)이 저장/불러올 때 쓰는 실제 컬럼과 반드시 일치해야 함.
+// 주증상/OS/PI/PA/환자진술: 현재 SOAP 구조 / SOAP_S,SOAP_O: 구버전 데이터 호환용 유지
+var RECORD_COLS = ['id','환자명','나이성별','진료일자','상담원문메모','주증상','OS','PI','PA','환자진술','SOAP_S','SOAP_O','SOAP_A','SOAP_P','한의학변증','양방질환명','문자메시지초안','진료평가','처방명','처방구성','용법','기간','복약지도문','상담원문','저장일시'];
+
 function getHeaders(sheet) {
-  var all = ['id','환자명','나이성별','진료일(등록일)','진료일자','상담원문메모','SOAP_S','SOAP_O','SOAP_A','SOAP_P','한의학변증','양방질환명','문자메시지초안','진료평가','처방명','처방구성','용법','기간','복약지도문','상담원문','저장일시'];
+  var all = RECORD_COLS;
   var existing = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0].map(function(h){ return String(h).trim(); });
   all.forEach(function(col){
     if (existing.indexOf(col) < 0) { sheet.getRange(1, sheet.getLastColumn()+1).setValue(col); existing.push(col); }
@@ -107,7 +123,7 @@ function getHeaders(sheet) {
 
 function createRecordSheet(ss) {
   var sheet = ss.insertSheet(RECORD_SHEET);
-  var headers = ['id','환자명','나이성별','진료일(등록일)','진료일자','상담원문메모','SOAP_S','SOAP_O','SOAP_A','SOAP_P','한의학변증','양방질환명','문자메시지초안','진료평가','처방명','처방구성','용법','기간','복약지도문','상담원문','저장일시'];
+  var headers = RECORD_COLS;
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#e8f4ea');
   sheet.setFrozenRows(1);
