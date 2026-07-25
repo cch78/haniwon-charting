@@ -450,6 +450,16 @@ function parseSoapText(text) {
 }
 
 // 실제 불러오기 실행
+// A(변증) 필드 텍스트에서 변증명만 추출
+// "주변증: 간양상항(肝陽上亢) - 설명\n겸증: 기울비허(氣鬱脾虛) - 설명" → ["간양상항(肝陽上亢)","기울비허(氣鬱脾虛)"]
+function deriveKoDiagFromA(aText) {
+  if (!aText) return [];
+  return aText.split('\n')
+    .map(function(line){ return line.replace(/^\s*(주변증|겸증|주\s*변증|겸\s*증|변증)\s*[:：]/, '').trim(); })
+    .map(function(s){ return s.split(/\s[-–—]\s/)[0].trim(); }) // 설명(- ...) 제거
+    .filter(function(s){ return s.length > 0; });
+}
+
 function loadChartFromHanymac() {
   var sel = document.getElementById('visit-select');
   var idx = parseInt(sel ? sel.value : 0) || 0;
@@ -483,11 +493,20 @@ function loadChartFromHanymac() {
     state.rawText = memo;
     // state에 analysisResult 구조 세팅 (복약지도문·문자초안 탭 활성화용)
     var ch = { cc:parsed.cc||'', os:parsed.os||'', pi:parsed.pi||'', pa:parsed.pa||'', ps:parsed.ps||'', a:parsed.A||'', p:parsed.P||'' };
+    // A(변증) 필드에서 변증명을 뽑아 구조화 → 저장 시 '한의학변증' 컬럼 채워짐
+    var koDiag = deriveKoDiagFromA(parsed.A || '');
     if (!state.analysisResult) {
-      state.analysisResult = { chart: ch, diagnosis: { korean: [], western: [] }, smsText: '', evaluation: {} };
+      state.analysisResult = { chart: ch, diagnosis: { korean: koDiag, western: [] }, smsText: '', evaluation: {} };
     } else {
       state.analysisResult.chart = ch;
+      if (!state.analysisResult.diagnosis) state.analysisResult.diagnosis = { korean: [], western: [] };
+      if (!(state.analysisResult.diagnosis.korean||[]).length) state.analysisResult.diagnosis.korean = koDiag;
     }
+    // 화면(탭3 변증 박스)에도 반영
+    var koEl = document.getElementById('diag-ko');
+    if (koEl) koEl.innerHTML = koDiag.length
+      ? koDiag.map(function(d){ return '<div class="diag-item">• '+esc(d)+'</div>'; }).join('')
+      : '<div class="diag-item" style="color:var(--text3)">미확인</div>';
     switchTab(3);
     document.getElementById('tab3').classList.add('done');
     showStatus('✅ ' + date + ' 차트를 불러왔습니다. 바로 확인하거나 AI 재분석 할 수 있습니다.', 'ok');
@@ -985,7 +1004,7 @@ function saveToGoogleSheet(extraData) {
     환자진술: document.getElementById('chart-ps').value,
     SOAP_A: document.getElementById('chart-a').value,
     SOAP_P: document.getElementById('chart-p').value,
-    한의학변증: (diag.korean||[]).join(', '),
+    한의학변증: ((diag.korean||[]).length ? diag.korean : deriveKoDiagFromA(document.getElementById('chart-a').value)).join(', '),
     양방질환명: (diag.western||[]).join(', '),
     문자메시지초안: r.smsText||'',
     진료평가: (typeof r.evaluation === 'object') ? JSON.stringify(r.evaluation) : (r.evaluation||''),
